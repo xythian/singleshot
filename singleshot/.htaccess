@@ -1,0 +1,3 @@
+Options +ExecCGI
+RewriteEngine Off
+AddHandler cgi-script py

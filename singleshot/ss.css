@@ -1,0 +1,115 @@
+
+.thumbnails {
+	background-color: #ddd;
+	text-align: center;
+}
+
+
+.thumbnail, .subdir {
+	background-color: white;
+	padding: 13px;
+	border: 2px solid black;
+	margin: 10px;
+	vertical-align: middle;
+	text-shadow: 4px 4px #333;
+}
+
+.album .thumbnail {
+   border: 6px double black;
+}
+
+.item {
+	padding: 10px;
+	margin: 10px;
+	vertical-align: middle;
+}
+
+
+.imageinfo {
+    background-color: #dddddd;
+    border: 2px black dotted;
+    padding: 10px;
+    margin: 2px;
+}
+
+.caption {
+	text-align: center;
+	font-family: cursive;
+}
+
+BODY.slidepage {
+	background: #ccc;
+}
+
+.mininail {
+	margin-left: 4px;
+	border: 1px solid black;
+}
+
+.mininail#active {
+	border-color: #c00;
+}
+
+.fullsize {
+	border: 1px solid black;
+	text-align: center;
+	margin-bottom: 5px;
+}
+
+.slideview {
+	margin-top: 30px;
+	text-align: center;
+}
+
+.slideview SPAN {
+	color: #333;
+	padding-top: 3px;
+	border-top: 1px solid #333;
+	font-variant: small-caps;
+}
+
+table.title {
+	color: #555;
+	width:95%;
+	margin-left:2.5%;
+	font-weight: bold;
+	font-variant: small-caps;
+	padding-bottom: 3px;
+}
+
+.sibnav {
+	width:95%;
+	margin-left:2.5%;
+	border-top: 1px solid #333;
+	margin-top:0;
+	margin-bottom: 8px;
+}
+
+.sibnav TABLE {
+	background: #999;
+	border: 1px solid #333;
+	border-top: 0;
+	border-right: 0;
+}
+
+.sibnav TABLE TD {
+	font-size: 70%;
+	font-family: sans-serif;
+	font-variant: small-caps;
+	color: #eee;
+	padding-left: 4px;
+	padding-right: 4px;
+	border-right: 1px solid #333;
+}
+.sibnav TABLE TD A:link, .sibnav TABLE TD A:visited {
+	color: #eee;
+	text-decoration: none;
+}
+.sibnav TABLE TD A:hover, .sibnav TABLE TD A:active {
+	color: #b00;
+	text-decoration: underline;
+}
+
+h1 { 
+   border-bottom: 1px black solid;
+}   

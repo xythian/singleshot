@@ -1,0 +1,117 @@
+#set $dummy = $directory.items.reverse
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/1999/REC-html401-19991224/loose.dtd">
+<HTML>
+<HEAD>
+<TITLE>$directory.title</TITLE>
+</head>
+<style>
+HTML {
+	height: 100%
+}
+BODY {
+	margin: 0px;
+	height:100%
+}
+TABLE#main {
+    width: 100%;
+    height: 100%;
+    background: black;
+}
+TD {
+    vertical-align: top;
+}
+TD#nav {
+    width: 60px;
+    text-align: center;
+    padding-top: 9px;
+    padding-bottom: 9px;
+}
+IMG.mininail {
+    margin-top: 9px;
+    border: 1px solid white;
+}
+TD#lgap, TD#content {
+    background:white;
+}
+TD#top {
+    height: 75px;
+    color: white;
+    vertical-align: middle;
+    text-align: center;
+}
+TD#lcurve, TD#rcurve {
+    height: 25px;
+    background:white;
+}
+TD#lgap {
+    width: 60px;
+}
+TD#content {
+    text-align: center;
+    font-family: monospace;
+    font-weight: bold;
+    font-size: 160%;
+}
+IMG.view {
+    border: 5px solid black;
+    padding: 5px;
+    margin-top: 20px;
+}
+TABLE#title TD {
+    color: white;
+    font-family: serif;
+    font-weight: bold;
+    font-size: 200%;
+    border: 2px solid white;
+    padding: 0px;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+TABLE#title {
+    /*border-spacing: 10px; */
+    /*border-collapse: collapse;*/
+    margin: auto;
+}
+
+</style>
+<body>
+<table id=main border=0 cellspacing=0 cellpadding=0>
+    <tr>
+	<td id=top colspan=3>
+	    <table cellspacing=10 cellpadding=0 border=0 ID=title><tr>
+	    #for letter in $directory.title
+		#if $letter == ' '
+		    #set $letter = '&nbsp;'
+		#end if
+<TD>$letter</TD>#slurp
+	    #end for
+	    </tr></table>
+	</td>
+    </tr>
+    <tr>
+	<td id=lcurve>&nbsp;<!--optionally rounded corner img--></td>
+	<td id=nav rowspan=2>
+	    #for item in $directory.items
+		#if $item.image
+		    <a href="$item.href"><img border=0 class=mininail #slurp
+		    #if $item == $image
+id=active #slurp
+		    #end if
+src="$item.image.sizes.mini.href" height="$item.image.sizes.mini.height" width="$item.image.sizes.mini.width"></a><br/>
+		#end if
+	    #end for
+	</td>
+	<td id=rcurve>&nbsp;<!--optionally rounded corner img--></td>
+    </tr>
+    <tr>
+	<td id=lgap>&nbsp;</td>
+	<td id=content>
+	#if $image
+	    $image.title<br/>
+	    <img class=view src="$image.sizes.view.href" height="$image.sizes.view.height" width="$image.sizes.view.width">
+	#end if
+	</td>
+    </tr>
+</table>
+</body>

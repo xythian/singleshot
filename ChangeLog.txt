@@ -1,0 +1,12 @@
+Version 1.0.1, 29 March 2004
+  - Bug fix #905628: Setting highlight image in _album.cfg doesn't work
+  - Moved classes around to remove cyclic dependency between some
+    modules
+  - Remove use of system() for resizing images; now uses process.py which in
+    turn uses fork/exec
+  - Improved diagnostic output of resize for error conditions
+  - Made singleshot.py more forgiving of spurious /s in input path
+
+
+Version 1.0.0, 18 January 2004
+-- First public release.

@@ -1,0 +1,61 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/1999/REC-html401-19991224/loose.dtd">
+<HTML>
+<HEAD>
+#if $image
+<title>$directory.title: $image.title</TITLE>
+#else
+<title>$directory.title</TITLE>
+#end if
+#include "css.tmpl"
+</head>
+<body class=slidepage>
+<table class=title><TR>
+<TD align=left>$directory.title</TD>
+<TD align=right>
+#if $image
+$image.name
+#end if
+</TD></TR></table>
+<div class=sibnav>
+#set siblings = [ a for a in $directory.parent.items if a.isdir]
+#if len($siblings) > 1
+<table align=center cellpadding=0 cellspacing=0 border=0><TR>
+#for sibling in siblings
+#if sibling.path != $directory.path
+<TD><A HREF="$sibling.href">$sibling.title</A></TD>
+#end if
+#end for
+</TR></TABLE>
+#end if
+</div>
+<table class=mininails align=center>
+<TR>
+#for item in $directory.items
+	   <TD class="$item.cssclassname">#slurp
+	   #if $item.image
+<a href="$item.href"><img border=0 class=mininail #slurp
+#if $item == $image
+id=active #slurp
+#end if
+src="$item.image.sizes.mini.href" height="$item.image.sizes.mini.height" width="$item.image.sizes.mini.width"></a>#slurp
+	   #else
+<a href="$item.href">$item.title</a>#slurp
+	   #end if
+</TD>
+#end for
+</tr>
+</table>
+
+</body>
+
+#if $image
+<div class=slideview>
+<img class=fullsize src="$image.sizes.view.href"
+height="$image.sizes.view.height" width="$image.sizes.view.width">
+#if $image.comment
+<br /><SPAN>$image.comment</SPAN>
+#end if
+</div>
+#end if
+
+</body>

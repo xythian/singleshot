@@ -1,0 +1,46 @@
+#errorCatcher BigEcho
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/1999/REC-html401-19991224/loose.dtd">
+<HTML>
+<HEAD>
+<title>$directory.title: $image.title</TITLE>
+#include "css.tmpl"
+#include "nextprev.tmpl"
+</head>
+<body>
+
+#include "header.tmpl"
+
+<h2>$directory.title: $image.title</h2>
+
+<div class=thumbnails>
+
+<div class=navigation>
+&nbsp;
+#if $image.hasPrev
+   <div style="float:left;"><a href="$image.prevItem.href">&lt;&lt; prev</a></div>
+#end if
+
+#if $image.hasNext
+   <div style="float:right;"><a href="$image.nextItem.href">next &gt;&gt;</a></div>
+#end if
+
+</div>
+
+$imgForSize($image.sizes.view, 'thumbnail') <br />
+$image.title
+
+
+#if $image.get_exif('Image DateTime')
+<div class=imageinfo>
+<table border=0 width="100%">
+<tr>
+   <td align=right>Shot</td><td>$image.get_exif('Image DateTime')</td>
+   <td align=right>Camera</td><td>$image.get_exif('Image Model')</td>
+</tr>
+</table>
+</div>
+#end if
+
+</div>
+
+</body>

@@ -1,0 +1,9 @@
+#if $item.hasPrev
+<link rel="prev" href="$item.prevItem.href">
+#end if
+#if $item.hasNext
+<link rel="next" href="$item.nextItem.href">
+#end if
+#if $item.parent
+<link rel="parent" href="$item.parent.href">
+#end if
