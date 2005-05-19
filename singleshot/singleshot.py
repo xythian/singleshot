@@ -31,13 +31,19 @@ except KeyError:
 form = cgi.FieldStorage()
 
 # figure out what kind of item we're handling
-item = create_item(get_path_info())
-if item.isdir:
+tag = form.getfirst('tagsearch')
+if tag:
+    item = ImagesByTagItem(tag)
     directory = item
     image = None
-else:
-    directory = item.album
-    image = item
+else:    
+    item = create_item(get_path_info())
+    if item.isdir:
+        directory = item
+        image = None
+    else:
+        directory = item.album
+        image = item
 
 # if an action is specified, we should use it; if not use
 # the default action

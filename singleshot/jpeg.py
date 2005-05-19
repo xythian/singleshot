@@ -37,6 +37,7 @@ try:
         caption = itpc_property((2, 120))
         author = itpc_property((2, 80))
         headline = itpc_property((2, 105))
+        keywords = itpc_property((2, 25))
         
     HAS_ITPC = True
 except:
@@ -44,6 +45,7 @@ except:
         caption = ''
         author = ''
         headline = ''
+        keywords = ''
     DUMMY_ITPC = DummyItpc()
     
 
@@ -75,9 +77,9 @@ class JpegImage(FilesystemEntity):
         else:
             return self.filename
 
-    title = demand_property('_title', _load_title)
-    
+    title = demand_property('_title', _load_title)    
     caption = delegate_property('itpc', 'caption')
+    keywords = delegate_property('itpc', 'keywords')
     
 
     def _load_exif(self):

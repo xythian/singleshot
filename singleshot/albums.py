@@ -124,7 +124,40 @@ class ItemLoader(object):
 
 create_item = ItemLoader().get_item
 
-class Item(FilesystemEntity):
+class ItemBase(object):
+    """Defines the Item protocol"""
+
+    def _get_hasNext(self):
+        return bool(self.nextItem)
+    
+    def _get_hasPrev(self):
+        return bool(self.prevItem)
+
+    def _get_name(self):
+        return ''
+
+    def _load_image(self):
+        return None
+
+    def _get_title(self):
+        return self.name
+
+    parent = virtual_demand_property('parent')
+    album = parent
+
+    title = virtual_readonly_property('title')
+    hasNext = virtual_readonly_property('hasNext')
+    hasPrev = virtual_readonly_property('hasPrev')
+    nextItem = virtual_demand_property('nextItem')
+    prevItem = virtual_demand_property('prevItem')
+    image = virtual_demand_property('image')    
+    href = virtual_readonly_property('href')
+    name = virtual_readonly_property('name')
+
+    cssclassname = 'item'
+    viewtemplatekey = 'item'
+
+class Item(ItemBase, FilesystemEntity):
     """
     An Item is an entity in an album.
     """
@@ -134,8 +167,6 @@ class Item(FilesystemEntity):
             return None
         else:
             return create_item(self.dirname);
-
-    parent = demand_property('parent', wrap_printexc(_load_parent))
     
     def _get_itempath(self):
         return self.path[len(STORE.image_root):]
@@ -150,24 +181,6 @@ class Item(FilesystemEntity):
         trace("view_root: %s", STORE.view_root)
         return os.path.join(STORE.view_root, self.itempath[1:])
     
-    def _get_hasNext(self):
-        return bool(self.nextItem)
-    
-    def _get_hasPrev(self):
-        return bool(self.prevItem)
-
-    def _get_name(self):
-        return ''
-
-    def __get_name(self):
-        return self._get_name()
-
-    def _load_image(self):
-        return None
-
-    def __load_image(self):
-        return self._load_image()
-
     def _load_nextItem(self):
         if self.album:
             return self.album.items.nextItemFor(self)
@@ -180,20 +193,9 @@ class Item(FilesystemEntity):
         else:
             return None
 
-    album = parent
-    image = property(wrap_printexc(__load_image))
-    itempath = property(_get_itempath)
-    href = property(_get_href)
+    itempath = virtual_readonly_property('itempath')
     viewpath = property(_get_viewpath)
 
-    cssclassname = 'item'
-    viewtemplatekey = 'item'
-    name = property(__get_name)
-    
-    hasNext = property(_get_hasNext)
-    hasPrev = property(_get_hasPrev)
-    nextItem = demand_property('nextItem', _load_nextItem)
-    prevItem = demand_property('prevItem', wrap_printexc(_load_prevItem))
 
 class ImageSize(FilesystemEntity):
     """
@@ -345,6 +347,38 @@ class OrderedItems(list):
     def orderedBy(self, *orders):
         orders = tuple(map(self.resolveOrder, orders))
         return OrderedItems(self, *orders)
+
+class ImagesByTagItem(ItemBase):
+    def __init__(self, tag):
+        self.tag = tag
+        self.tag_re = re.compile('%s' % re.escape(tag), re.I)
+
+    def _get_title(self):
+        return 'Tagged with %s' % self.tag
+
+    def _load_items(self):
+        items = []
+        for root, dirs, files in os.walk(STORE.root):
+            for dir in dirs:
+                path = os.path.join(root, dir)
+                item = create_item(path)
+                if not item:
+                    # don't visit directories that aren't albums
+                    dirs.remove(dir)
+            for file in files:
+                path = os.path.join(root, file)
+                item = create_item(path)
+                if item and item.keywords:                    
+                    if self.tag_re.search(item.keywords):
+                        items.append(item)
+        return OrderedItems(items, ORDERS['-mtime'])
+
+    items = virtual_demand_property('items')
+    
+    def _load_config(self):
+        return create_item(STORE.root).config
+    
+    config = virtual_demand_property('config')
     
 class AlbumItem(ConfiguredEntity, Item):
     """

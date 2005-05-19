@@ -42,6 +42,80 @@ def demand_property(name, loadfunc):
         
     return property(_get_demand_property, None, _flush_demand_property)
 
+def virtual_readonly_property(name):
+    getter = '_get_%s' % name
+    def _get(self):
+        try:
+            g = getattr(self, getter)
+        except AttributeError:
+            return None
+        try:
+            return g()
+        except:
+            import traceback
+            traceback.print_exc()
+            return None
+            
+    return property(_get)
+
+def virtual_property(name):
+    getter = '_get_%s' % name
+    setter = '_set_%s' % name
+    def _get(self):
+        try:
+            g = getattr(self, getter)
+        except AttributeError:
+            return None
+        try:
+            return g()
+        except:
+            import traceback
+            traceback.print_exc()
+            return None
+        
+    def _set(self, value):
+        try:
+            g = getattr(self, setter)
+        except AttributeError:
+            return None
+        return g(value)    
+    return property(_get, _set)
+
+
+def virtual_demand_property(name):
+    loader_name = '_load_%s' % name
+    value_name = '_%s_value' % name
+    def _get_vdemand_property(self):
+        try:
+            return getattr(self, value_name)
+        except AttributeError:
+            try:
+                loadfunc = getattr(self, loader_name)
+            except AttributeError:
+                v = None
+                loadfunc = None
+            if loadfunc:
+                try:
+                    v = loadfunc()
+                except:
+                    import traceback
+                    traceback.print_exc()
+                    return None
+            setattr(self, value_name, v)
+            return v
+
+    def _flush_vdemand_property(self):
+        try:
+            delattr(self, value_name)
+        except AttributeError:
+            # ok, not loaded
+            pass
+        
+    return property(_get_vdemand_property, None, _flush_vdemand_property)
+
+    
+    
+
 def config_property(key, section='DEFAULT', get='get'):
     def get_config_property(self):
         trace('config_property %s.%s [%s]', self, key, section)
