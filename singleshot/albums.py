@@ -28,7 +28,7 @@ def http_respond_image(path, output):
     output.write("\r\n")
     shutil.copyfileobj(open(path, 'rb'), output)
 
-class ImageSizer(object):
+class ImageMagickSizer(object):
     def execute(self, source=None,
                 dest=None,
                 size=None,
@@ -46,7 +46,18 @@ class ImageSizer(object):
         r = p.wait()
         if r != 0 or not os.path.exists(dest):
             trace("ImageSizer failed for %s -> %s", source, dest)
-IMAGESIZER = ImageSizer()
+
+class PILSizer(object):
+    def execute(self, source=None, dest=None, size=None,sharpen=None):
+        input = Image.open(source)
+        input.thumbnail((size, size), Image.ANTIALIAS)        
+        input.save(dest, "JPEG")
+
+try:
+    import Image
+    IMAGESIZER = PILSizer()
+except:
+    IMAGESIZER = ImageMagickSizer()
             
 def get_path_info():
     v = os.environ['PATH_INFO']
@@ -287,16 +298,6 @@ class ImageItem(JpegImage, Item):
     def _load_sizes(self):
         return ImageSizes(self)
 
-    def _get_title(self):
-        try:
-            if self.comment:
-                return self.comment
-            else:
-                return self.filename
-        except:
-            import traceback
-            traceback.print_exc()
-
     def _get_href(self):
         return self.album.href + self.filename + '.html'
 
@@ -304,7 +305,6 @@ class ImageItem(JpegImage, Item):
         return self
 
     href = property(_get_href)
-    title = property(_get_title)
     sizes = demand_property('sizes', _load_sizes)
 
     def expire_sizes(self):

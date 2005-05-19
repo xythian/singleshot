@@ -9,19 +9,75 @@ from storage import FilesystemEntity
 from ssconfig import CONFIG, STORE
 from cStringIO import StringIO
 
+HAS_ITPC = False
+try:
+    import IptcImagePlugin
+    import Image
+
+    IptcImagePlugin.getiptcinfo   # make sure the function we need is there
+    
+    def itpc_property(tuple):
+        def _delegate_get(self):
+            return self._get_property(tuple)
+        return property(_delegate_get)
+    
+    class ItpcHeader(object):
+        def __init__(self, path):
+            img = Image.open(path)
+            self.info = IptcImagePlugin.getiptcinfo(img)
+                
+
+        def _get_property(self, tuple):
+            try:
+                return self.info[tuple]
+            except KeyError:
+                return ''
+
+        caption = itpc_property((2, 120))
+        author = itpc_property((2, 80))
+        headline = itpc_property((2, 105))
+        
+    HAS_ITPC = True
+except:
+    class DummyItpc(object):
+        caption = ''
+        author = ''
+        headline = ''
+    DUMMY_ITPC = DummyItpc()
+    
+
 def decode_2byte(bytes):
     return ord(bytes[0]) * 256 + ord(bytes[1])
-
-
 
 class JpegImage(FilesystemEntity):
     def _load_header(self):
         return JpegHeader(self.path)
-    
+
     _header = demand_property('_header', _load_header)
     comment = delegate_property('_header', 'comment')
     height = delegate_property('_header', 'height')
     width = delegate_property('_header', 'width')    
+
+    def _load_itpc(self):
+        if HAS_ITPC:            
+            return ItpcHeader(self.path)
+        else:
+            return DUMMY_ITPC
+
+    itpc = demand_property('_itpc', _load_itpc)
+
+    def _load_title(self):
+        if self.itpc.headline:
+            return self.itpc.headline
+        elif self.comment:
+            return self.comment
+        else:
+            return self.filename
+
+    title = demand_property('_title', _load_title)
+    
+    caption = delegate_property('itpc', 'caption')
+    
 
     def _load_exif(self):
         try:
