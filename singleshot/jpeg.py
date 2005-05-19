@@ -25,7 +25,8 @@ try:
         def __init__(self, path):
             img = Image.open(path)
             self.info = IptcImagePlugin.getiptcinfo(img)
-                
+	    if not self.info:
+		self.info = {}
 
         def _get_property(self, tuple):
             try:
