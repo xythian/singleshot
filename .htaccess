@@ -14,18 +14,38 @@ RewriteRule (\.cfg) - [F]
 # resized images accessed through images/
 RewriteRule ^view/.* - [L]
 
+
+#
+# A request for a filtered, cached resized version image
+#
+RewriteRule ^(.*)/filter:([a-zA-Z0-9]+)/([^/]*)-([1-9][0-9]+)(\.jpg)$ view/$1/__filter_$2_$3-$4$5  [NC,S=3]
+RewriteRule ^(.*)/filter:([a-zA-Z0-9]+)/([^/]*)(\.jpg)$ view/$1/__filter_$2_$3-1200$4  [NC,S=2]
+
 # A -nnn suffix requests a cached resized version
 # Critical that this rule [S]kip any other match-all-images rule
 RewriteRule ^(.*)-([1-9][0-9]+)(\.jpg)$ view/$1-$2$3  [NC,S=1]
+
 # Requesting the whole image only gets you the 1200 pixel size, not the full
 # file (comment this out if you want to allow access to the large file)
 RewriteRule ^(.*)(\.jpg)$ view/$1-full$2 [NC]
+
+#
+# If it's a request for a filtered, cached resized version and it does not
+# yet exist, rewrite to a cgi that will produce it
+#
+RewriteCond %{REQUEST_FILENAME} (.*)/view/(.*)/__filter_([A-Za-z0-9]+)_([^/]+)-([1-9][0-9]+|full)(\.jpg)$ [NC]
+#RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule .*        singleshot/resize.py/%5/%1/%2/%4%6?filter=%3 [L]
+
+
 
 # If it's a -nnn suffix request for a cached resized version *AND* that
 # size is not yet cached, rewrite to a cgi which will produce it
 RewriteCond %{REQUEST_FILENAME} (.*)/view/(.*)-([1-9][0-9]+|full)(\.jpg)$ [NC]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule .*        singleshot/resize.py/%3/%1/%2%4 [L]
+
+RewriteRule tag/(.+)$ singleshot/singleshot.py/?tagsearch=$1
 
 # If it's a request for FOO.html and FOO.jpg exists, rewrite to a CGI which
 # will make a nice wrapper page

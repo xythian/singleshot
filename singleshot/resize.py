@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.2
+#!/usr/bin/env python2.3
 
 class SecurityError(Exception):
     pass
@@ -40,12 +40,23 @@ try:
     image = create_item(mypath)
     if not image:
         raise SecurityError, 'Path did not map to image: %s' % mypath
+
+    import cgi
+    form = cgi.FieldStorage()
+
+    flt = form.getfirst('filter')
+    
     if image.width > size or image.height > size:
         serveimage = image.sizes[size]
+        if flt:
+            serveimage = serveimage.filtered(flt=flt)
         serveimage.ensure()
+    elif flt:
+        serveimage = image.filtered(flt=flt)
+        serveimage.ensure()
+        trace('hi')
     else:
         serveimage = image
-    
     http_respond_image(serveimage.path, sys.stdout)
 
 except SecurityError, msg:

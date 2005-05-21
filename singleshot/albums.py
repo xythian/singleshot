@@ -32,7 +32,8 @@ class ImageMagickSizer(object):
     def execute(self, source=None,
                 dest=None,
                 size=None,
-                sharpen="0.9x80"):
+                sharpen="0.9x80",
+                flt=None):
         cmd = os.path.join(CONFIG.imagemagickPath, 'convert')
         sizespec = '%sx%s' % (size, size)
         args = [cmd, '-size', sizespec, '-scale', sizespec, '-unsharp', sharpen, source, dest]
@@ -48,17 +49,31 @@ class ImageMagickSizer(object):
             trace("ImageSizer failed for %s -> %s", source, dest)
 
 class PILSizer(object):
-    def execute(self, source=None, dest=None, size=None,sharpen=None):
+    def execute(self, source=None, dest=None, size=None,sharpen=None, flt=None):
         input = Image.open(source)
-        input.thumbnail((size, size), Image.ANTIALIAS)        
+
+        import sys
+        if flt:
+            input.thumbnail((size, size), Image.ANTIALIAS)
+            if flt == 'copyright':
+                import ImageFont
+                import ImageDraw
+                import ImageEnhance
+                font = ImageFont.load_default()
+                draw = ImageDraw.Draw(input)
+                draw.rectangle(( (0,0), (size, 20)), fill=(0,0,0))
+                draw.text((20,0), 'Copyright 2005 Ken Fox', font=font, fill=(255,255,255))
+                del draw
+        else:
+            input.thumbnail((size, size), Image.ANTIALIAS)            
         input.save(dest, "JPEG")
 
 try:
     import Image
-    IMAGESIZER = PILSizer()
+    IMAGESIZER = PILSizer()    
 except:
     IMAGESIZER = ImageMagickSizer()
-            
+
 def get_path_info():
     v = os.environ['PATH_INFO']
     return v[1:]
@@ -206,19 +221,28 @@ class ImageSize(FilesystemEntity):
                  image=None,
                  size=None,
                  height=None,
-                 width=None):        
+                 width=None,
+                 flt=None):        
         self.image = image
         self.height = height
         self.width = width
         self.size = size
-        filename = '%s-%s%s' % (image.filename,
-                                size,
-                                image.extension)
+        if flt:
+            filename = '__filter_%s_%s-%s%s' % (flt,
+                                                image.filename,
+                                                size,
+                                                image.extension)
+        else:
+            filename = '%s-%s%s' % (image.filename,
+                                    size,
+                                    image.extension)
+        self.filter = flt
         self.href = image.album.href + filename
         path = os.path.join(image.album.viewpath, filename) 
         super(ImageSize, self).__init__(path)
 
     def _get_uptodate(self):
+        return False
         if not self.exists:
             return False
         elif self.image.mtime > self.mtime:
@@ -227,6 +251,11 @@ class ImageSize(FilesystemEntity):
             return True
 
     uptodate = property(_get_uptodate)
+
+    def filtered(self, flt=None):
+        if not flt:
+            return self
+        return ImageSize(self.image, self.size, self.height, self.width, flt=flt)
     
     def ensure(self):
         if self.uptodate:
@@ -237,7 +266,8 @@ class ImageSize(FilesystemEntity):
         self.image.album.ensure_viewpath()
         IMAGESIZER.execute(source=self.image.path,
                            dest=self.path,
-                           size=self.size)                           
+                           size=self.size,
+                           flt=self.filter)                           
 
     def expire(self):
         if self.exists:    
@@ -311,6 +341,15 @@ class ImageItem(JpegImage, Item):
 
     def expire_sizes(self):
        map(os.remove, self.sizes.files) 
+
+    def filtered(self, flt=None):
+        if not flt:
+            return self
+        if self.height > self.width:
+            size = self.height
+        else:
+            size = self.width
+        return ImageSize(self, size, self.height, self.width, flt=flt)
 
     dirty = expire_sizes
 
