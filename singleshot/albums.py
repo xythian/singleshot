@@ -14,65 +14,12 @@ from jpeg import JpegImage
 from storage import FilesystemEntity
 from properties import *
 from ssconfig import CONFIG, STORE, ConfiguredEntity
+import imageprocessor
 
-def http_respond_image(path, output):
-    try:
-        import msvcrt
-        msvcrt.setmode(output.fileno(), os.O_BINARY)
-    except:
-        pass
+from sets import Set
 
-    l = os.stat(path).st_size
-    output.write("Content-Type: image/jpeg\r\n")
-    output.write("Content-Length: %s\r\n" % str(l))
-    output.write("\r\n")
-    shutil.copyfileobj(open(path, 'rb'), output)
 
-class ImageMagickSizer(object):
-    def execute(self, source=None,
-                dest=None,
-                size=None,
-                sharpen="0.9x80",
-                flt=None):
-        cmd = os.path.join(CONFIG.imagemagickPath, 'convert')
-        sizespec = '%sx%s' % (size, size)
-        args = [cmd, '-size', sizespec, '-scale', sizespec, '-unsharp', sharpen, source, dest]
-        
-        trace('Running: "%s"', '" "'.join(args))
-        p = process.ProcessProxy(cmd=args,
-                                 cwd=STORE.image_root,
-                                 env=CONFIG.getInvokeEnvironment(),
-                                 stderr=sys.stderr,
-                                 stdout=sys.stderr)
-        r = p.wait()
-        if r != 0 or not os.path.exists(dest):
-            trace("ImageSizer failed for %s -> %s", source, dest)
-
-class PILSizer(object):
-    def execute(self, source=None, dest=None, size=None,sharpen=None, flt=None):
-        input = Image.open(source)
-
-        import sys
-        if flt:
-            input.thumbnail((size, size), Image.ANTIALIAS)
-            if flt == 'copyright':
-                import ImageFont
-                import ImageDraw
-                import ImageEnhance
-                font = ImageFont.load_default()
-                draw = ImageDraw.Draw(input)
-                draw.rectangle(( (0,0), (size, 20)), fill=(0,0,0))
-                draw.text((20,0), 'Copyright 2005 Ken Fox', font=font, fill=(255,255,255))
-                del draw
-        else:
-            input.thumbnail((size, size), Image.ANTIALIAS)            
-        input.save(dest, "JPEG")
-
-try:
-    import Image
-    IMAGESIZER = PILSizer()    
-except:
-    IMAGESIZER = ImageMagickSizer()
+IMAGESIZER = imageprocessor.select_processor()
 
 def get_path_info():
     v = os.environ['PATH_INFO']
@@ -242,7 +189,6 @@ class ImageSize(FilesystemEntity):
         super(ImageSize, self).__init__(path)
 
     def _get_uptodate(self):
-        return False
         if not self.exists:
             return False
         elif self.image.mtime > self.mtime:
@@ -386,38 +332,6 @@ class OrderedItems(list):
     def orderedBy(self, *orders):
         orders = tuple(map(self.resolveOrder, orders))
         return OrderedItems(self, *orders)
-
-class ImagesByTagItem(ItemBase):
-    def __init__(self, tag):
-        self.tag = tag
-        self.tag_re = re.compile('%s' % re.escape(tag), re.I)
-
-    def _get_title(self):
-        return 'Tagged with %s' % self.tag
-
-    def _load_items(self):
-        items = []
-        for root, dirs, files in os.walk(STORE.root):
-            for dir in dirs:
-                path = os.path.join(root, dir)
-                item = create_item(path)
-                if not item:
-                    # don't visit directories that aren't albums
-                    dirs.remove(dir)
-            for file in files:
-                path = os.path.join(root, file)
-                item = create_item(path)
-                if item and item.keywords:                    
-                    if self.tag_re.search(item.keywords):
-                        items.append(item)
-        return OrderedItems(items, ORDERS['-mtime'])
-
-    items = virtual_demand_property('items')
-    
-    def _load_config(self):
-        return create_item(STORE.root).config
-    
-    config = virtual_demand_property('config')
     
 class AlbumItem(ConfiguredEntity, Item):
     """
