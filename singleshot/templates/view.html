@@ -1,0 +1,17 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns:tal="http://xml.zope.org/namespaces/tal"  
+      xmlns:metal="http://xml.zope.org/namespaces/metal"
+      metal:use-macro="macros/macros/page">
+
+<div metal:fill-slot="content">
+
+<img tal:define="t image/sizes/view" tal:attributes="src t/href;height t/height;width t/width" class="thumbnail" border="0" />
+
+<div tal:content="image/caption" tal:condition="image/caption">Caption</div>
+
+<div tal:condition="item/keywords">Keywords:
+<span tal:repeat="tag item/keywords"><a href="#" tal:attributes="href string:${ssroot}tag/${tag}" tal:content="tag">Keyword</a> </span> </div>
+       
+</div>
+
+</html>
