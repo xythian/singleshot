@@ -86,6 +86,7 @@ def virtual_demand_property(name):
     loader_name = '_load_%s' % name
     value_name = '_%s_value' % name
     def _get_vdemand_property(self):
+        v = None
         try:
             return getattr(self, value_name)
         except AttributeError:
@@ -95,12 +96,7 @@ def virtual_demand_property(name):
                 v = None
                 loadfunc = None
             if loadfunc:
-                try:
-                    v = loadfunc()
-                except:
-                    import traceback
-                    traceback.print_exc()
-                    return None
+                v = loadfunc()
             setattr(self, value_name, v)
             return v
 
