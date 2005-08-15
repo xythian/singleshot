@@ -113,3 +113,91 @@ table.title {
 h1 { 
    border-bottom: 1px black solid;
 }   
+
+
+#header {
+  background: #507EA1;
+  color: #ffffff;
+  border-bottom: 1px solid black;
+  text-align: center;
+  padding-bottom: 3px;
+}
+
+#footer {
+  background: #507EA1;
+  color: #ffffff;
+  border-top: 1px solid black;
+  text-align: center;
+}
+
+
+#header h1 {
+  padding: 0px;
+  margin-bottom: 0px;
+  text-align: center;
+}
+
+#header div {
+  font-size: 1.1em;
+}
+
+body { 
+   text-align: center; 
+   background: #406480;
+}
+
+#page {
+  width: 50em;
+  text-align: left;
+}
+
+h1, h2, h3 { 
+    text-align: left;
+    font-family: 'Lucida Grande', Verdana, Arial, Sans-Serif;
+}
+
+#content>h1, #content>h2 {
+    border-bottom: 1px solid black;
+}
+
+#content {
+  text-align: left;
+  background: #CFDCE6;    
+  padding: 10px;
+}
+
+#content>h1 {
+  font-size: 1.5em;
+}
+
+#content>h2 {
+  font-size: 1.3em;
+}
+
+
+#navigation {
+  background: #E6DACF;
+  border-bottom: 1px solid black;
+  text-align: center;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+#navigation ul {
+    margin:0;
+    padding:0;
+}
+#navigation li {
+    display:inline;
+    list-style:none;
+    margin:0;
+    padding: 10px;
+}  
+
+.softwarelist tr td {
+  vertical-align: top;
+}
+
+.softwarelist tr td {
+   border-top: 1px solid black;
+}
