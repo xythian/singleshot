@@ -6,8 +6,12 @@ import EXIF
 import process
 from properties import *
 from storage import FilesystemEntity
+from xmp import XMPHeader, EmptyXMPHeader
+
 from ssconfig import CONFIG, STORE
 from cStringIO import StringIO
+
+
 
 HAS_ITPC = False
 try:
@@ -38,6 +42,8 @@ try:
         author = itpc_property((2, 80))
         headline = itpc_property((2, 105))
         keywords = itpc_property((2, 25))
+        title = itpc_property((2, 05))
+        
         
     HAS_ITPC = True
 except:
@@ -46,6 +52,7 @@ except:
         author = ''
         headline = ''
         keywords = ''
+        title = ''
     DUMMY_ITPC = DummyItpc()
     
 
@@ -67,20 +74,27 @@ class JpegImage(FilesystemEntity):
         else:
             return DUMMY_ITPC
 
+    def _load_xmp(self):
+        return self._header.xmp
+
     itpc = demand_property('_itpc', _load_itpc)
+    xmp = demand_property('_xmp', _load_xmp)
 
     def _load_title(self):
-        if self.itpc.headline:
+        if self.xmp.Headline:
+            return self.xmp.Headline
+        elif self.itpc.headline:
             return self.itpc.headline
-        elif self.comment:
-            return self.comment
+        elif self.itpc.title:
+            return self.itpc.title
+#        elif self.comment:
+#            return self.comment
         else:
             return self.filename
 
     title = demand_property('_title', _load_title)    
     caption = delegate_property('itpc', 'caption')
-    keywords = delegate_property('itpc', 'keywords')
-    
+    keywords = delegate_property('xmp', 'keywords')
 
     def _load_exif(self):
         try:
@@ -157,6 +171,7 @@ class JpegImage(FilesystemEntity):
         p.close()
         return 1
 
+
 class JpegHeader(object):
     def __init__(self, path):
         self.comment = ''
@@ -181,12 +196,11 @@ class JpegHeader(object):
                 return ''
            subhdr = file.read(4)
            while (subhdr[0] == '\xFF') and callbacks:
-              type = ord(subhdr[1])
+              type = ord(subhdr[1])              
               length = decode_2byte(subhdr[2:4]) - 2
               body = file.read(length)
-              try:
+              try:                  
                   callbacks[type](body)
-                  del callbacks[type]
               except KeyError:
                   pass
               subhdr = file.read(4);
@@ -194,8 +208,23 @@ class JpegHeader(object):
         finally:
             file.close()
 
+    def handle_xmp(self, body):
+        self.xmp = XMPHeader(body)
+
+    def handle_app1(self, body):
+        if len(body) > 4 and body[:4] == 'Exif':
+            pass # exif data
+        elif body.startswith('http://ns.adobe.com/xap/1.0/\x00'):
+            self.handle_xmp(body[29:])
+        pass
+#        print body
 
     def load(self, path):
+        self.xmp = EmptyXMPHeader()
         self._read_header(path, {0xC0 : self.handle_sof,
-                                 0xFE : self.handle_comment})
+                                 0xFE : self.handle_comment,
+                                 0xE1 : self.handle_app1})
+
+
+
 
