@@ -3,7 +3,6 @@ import os
 import fnmatch
 import sys
 import EXIF
-import Cheetah.Template
 import re
 import struct
 import shutil
@@ -13,6 +12,8 @@ from jpeg import JpegHeader
 from properties import *
 from albums import *
 import imp
+
+
 
 def create_template(templatekey='view', directory=None, **kw):
      filename = directory.config.get('templates', templatekey)

@@ -4,6 +4,7 @@ import shutil
 import os.path
 from templates import create_template
 import albums
+from action_view import act
 
 def invoke(dir, image, form, cookie):
 
