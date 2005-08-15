@@ -1,3 +1,23 @@
+Version ???, ...
+  - Substantially rearranged dispatch.   All CGI entry now goes
+  through sscgi.py which centralizes some error reporting and
+  dispatches to action_* handlers.
+  - Defined a 'virtual' handler for files and directories that do not
+  exist, permitting the action_tag handler to be invoked for /tag/blah
+  - Experimentially replaced Cheetah with SimpleTAL for templates
+  - Added support to JpegHeader for reading XMP data from JPEGs
+  - Started to remove support for using raw JPEG comments as captions
+  - Defined mechanism for filtered images and added filters/ directory
+  to contain those filters.
+  - Added PIL-based resizer
+  - Moved image processing from albums.py to imageprocessor.py
+  - Moved tag-related code from albums.py to action_tag.py
+  - Added test script extractor.py for running experiments locally
+  - Removed traceback eating behavior of virtual_demand_property
+  - Started to define prettier template for default singleshot templates.K
+  
+
+
 Version 1.0.1, 29 March 2004
   - Bug fix #905628: Setting highlight image in _album.cfg doesn't work
   - Moved classes around to remove cyclic dependency between some

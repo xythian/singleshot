@@ -25,9 +25,9 @@ def act(path, form):
         tmplname = 'album'
     else:
         tmplname = 'view'
-        print 'Content-type: text/html'
-        print
-        write_template(templatekey=tmplname, item=item)
+    print 'Content-type: text/html'
+    print
+    write_template(templatekey=tmplname, item=item)
         
 
 def invoke(dir, item, form):
