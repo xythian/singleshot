@@ -29,6 +29,9 @@ class ConfiguredEntity(FilesystemEntity):
     config = demand_property('config', __load_config)    
 
 
+class SecurityError(Exception):
+    pass
+
 class Store(object):
     def __init__(self):
         root = os.path.dirname(sys.argv[0]) # the cgi path
@@ -43,6 +46,15 @@ class Store(object):
 
     def within_root(self, dirname):
         return os.path.abspath(dirname).startswith(self.image_root)
+
+    def check_path(self, path):
+        if os.path.isabs(path):
+            path = os.path.normpath(path)
+        else:
+            path = os.path.normpath('/' + path)        
+        if not self.within_root(path):
+            raise SecurityError, '%s does not start with ROOT (%s)' % (path, self.image_root)
+        return path
 
     def find_template(self, filename):
         return os.path.join(self.template_root, filename)
