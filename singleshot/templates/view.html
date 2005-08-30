@@ -5,12 +5,14 @@
 
 <div metal:fill-slot="content">
 
-<img tal:define="t image/sizes/view" tal:attributes="src t/href;height t/height;width t/width" class="thumbnail" border="0" />
+<img tal:define="t item/sizes/view" tal:attributes="src t/href;height t/height;width t/width" class="thumbnail" border="0" />
 
-<div tal:content="image/caption" tal:condition="image/caption">Caption</div>
+<div tal:content="item/title">Item Title</div>
+
+<div tal:content="item/caption" tal:condition="item/caption">Caption</div>
 
 <div tal:condition="item/keywords">Keywords:
-<span tal:repeat="tag item/keywords"><a href="#" tal:attributes="href string:${ssroot}tag/${tag}" tal:content="tag">Keyword</a> </span> </div>
+<span tal:repeat="tag item/keywords"><a href="#" tal:attributes="href string:${ssroot}keyword/${tag}" tal:content="tag">Keyword</a> </span> </div>
        
 </div>
 

@@ -13,11 +13,11 @@
 <div tal:content="title">Page Title</div></div>
 <div id="navigation"><span metal:define-slot="navigation">
 <div>
-<span tal:condition="item/prevItem"><a
-href="#" tal:attributes="href item/prevItem/href">&lt;&lt; prev</a></span>
+<span tal:condition="context/prevItem"><a
+href="#" tal:attributes="href context/prevItem/href">&lt;&lt; prev</a></span>
 
-<span tal:condition="item/nextItem"><a
-href="#" tal:attributes="href item/nextItem/href">next
+<span tal:condition="context/nextItem"><a
+href="#" tal:attributes="href context/nextItem/href">next
 &gt;&gt;</a></span></div>
 <div tal:condition="crumbs/parents" class="crumbs">
 <span tal:repeat="crumb crumbs/parents"><a href="#"
