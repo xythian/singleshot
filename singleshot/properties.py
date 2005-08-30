@@ -49,13 +49,7 @@ def virtual_readonly_property(name):
             g = getattr(self, getter)
         except AttributeError:
             return None
-        try:
-            return g()
-        except:
-            import traceback
-            traceback.print_exc()
-            return None
-            
+        return g()
     return property(_get)
 
 def virtual_property(name):
@@ -66,12 +60,7 @@ def virtual_property(name):
             g = getattr(self, getter)
         except AttributeError:
             return None
-        try:
-            return g()
-        except:
-            import traceback
-            traceback.print_exc()
-            return None
+        return g()
         
     def _set(self, value):
         try:
@@ -131,28 +120,20 @@ def writable_config_property(key, section='DEFAULT', get='get'):
         if not cfg.has_section(section):
             cfg.add_section(section)
         cfg.set(section, key, value)
-        try:
-            fh = file(self._config_path()[-1], "w")
-            cfg.write(fh)
-            fh.close()
-        except:
-            import traceback
-            traceback.print_exc(file=sys.stderr)
+        fh = file(self._config_path()[-1], "w")
+        cfg.write(fh)
+        fh.close()
         del self.config
     return property(get_config_property, set_config_property)
 
 def delegate_property(name, propname):
     def _delegate_get(self):
         trace('delegate_get %s.%s.%s', self, name, propname)
-        try:
-            o = getattr(self, name)
-            if o:
-                return getattr(o, propname)
-            else:
-                return o
-        except:
-            import traceback
-            traceback.print_exc()
+        o = getattr(self, name)
+        if o:
+            return getattr(o, propname)
+        else:
+            return o
 
     def _delegate_set(self, v):
         o = getattr(self, name)

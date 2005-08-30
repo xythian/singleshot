@@ -40,14 +40,22 @@ class Store(object):
         self.root = root                    # is the root
         
         self.ss_root = os.path.join(root, 'singleshot')
-        self.template_root = os.path.join(self.ss_root, 'templates')
-        self.image_root = root
+        if os.path.exists(os.path.join(self.root, 'templates')):
+            self.template_root = os.path.join(self.root, 'templates')
+        else:
+            self.template_root = os.path.join(self.ss_root, 'templates')
+        self.image_root = root        
         self.view_root = os.path.join(root, 'view')
+        self.static_root = os.path.join(root, 'static')
 
     def within_root(self, dirname):
         return os.path.abspath(dirname).startswith(self.image_root)
 
     def check_path(self, path):
+        "Note: now accepts URI path instead of %{REQUEST_FILENAME}"
+        if path.startswith(CONFIG.url_prefix):
+            path = path[len(CONFIG.url_prefix):]
+        path = os.path.join(self.image_root, os.path.normpath(path))
         if os.path.isabs(path):
             path = os.path.normpath(path)
         else:
@@ -66,10 +74,6 @@ class SingleshotConfig(ConfiguredEntity):
     defaults = { 'singleshot': { 'url_prefix' : '/singleshot/',
                                  'ss_uri' : ''
                                },
-                 'templates' : { 'view' : 'view.tmpl',
-                                 'album' : 'album.tmpl',
-                                 'albumedit' : 'albumedit.tmpl',
-                               },
                      'paths' : { 'imagemagick' : '/usr/bin',
                                  'libjpegbin' : '/usr/bin',
                                  'invokepath' : '/bin:/usr/bin',
@@ -80,6 +84,7 @@ class SingleshotConfig(ConfiguredEntity):
               }
     _default_imagesizes =  {  'mini' : 40,
                              'thumb' : 200,
+                          'bigthumb' : 350,
                               'view' : 600,
                               'full' : 1200
                            }
@@ -93,10 +98,6 @@ class SingleshotConfig(ConfiguredEntity):
     config_filename = '_singleshot.cfg'
     url_prefix = config_property('url_prefix', 'singleshot')
     ssuri = property(_get_ssuri)
-
-    viewTemplate = config_property('view', 'templates')
-    albumTemplate = config_property('album', 'templates')
-    albumEditTemplate = config_property('albumedit', 'templates')
 
     imagemagickPath = config_property('imagemagick', 'paths')
     libjpegbinPath = config_property('libjpegbin', 'paths')
@@ -135,6 +136,14 @@ class SingleshotConfig(ConfiguredEntity):
         if name == 'cvs':
             return True
         elif path in (STORE.view_root, STORE.ss_root):
+            return True
+        elif path.startswith(STORE.view_root):
+            return True
+        elif path.startswith(STORE.template_root):
+            return True
+        elif path.startswith(STORE.ss_root):
+            return True
+        elif path.startswith(STORE.static_root):
             return True
         elif fnmatch.fnmatch(name, '.*'):
             return True

@@ -1,7 +1,6 @@
 import os
 import fnmatch
 import sys
-import Cheetah.Template
 import re
 import struct
 import shutil
@@ -44,16 +43,36 @@ class ImageMagickSizer(object):
         if r != 0 or not os.path.exists(dest):
             trace("ImageSizer failed for %s -> %s", source, dest)
 
+    def list_filters(self):
+        return ()
+
 class PILSizer(object):
-    def load_filter(self, name):
-        path = os.path.join(STORE.ss_root, 'filters')
-        path = os.path.join(path, name + '.py')
+    def __init__(self):
+        self.filterpath = os.path.join(STORE.ss_root, 'filters')
+        self.__filters = {} # self._load_filters()
+        
+    def _load_filters(self):
+        filters = {}
+        if os.path.exists(self.filterpath):
+            for name in os.listdir(self.filterpath):
+                if name.endswith('.py'):
+                    flt = self._load_filter(name, os.path.join(self.filterpath, name)).pil_filter
+                    filters[name] = flt
+        return filters
+
+    def _load_filter(self, name, path):
         f = open(path, 'U')
         try:
             m = imp.load_source(name, path, f)
             return m.pil_filter
         finally:
             f.close()
+
+    def list_filters(self):
+        return self.__filters.keys()
+    
+    def load_filter(self, name):
+        return self.__filters[name]
 
     def execute(self, source=None, dest=None, size=None,sharpen=None, flt=None):
         import Image

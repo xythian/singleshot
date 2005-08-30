@@ -8,6 +8,7 @@ import re
 import shutil
 from albums import *
 
+from errors import return_404
 from ssconfig import SecurityError, STORE
 
 def http_respond_image(path, output):
@@ -37,8 +38,7 @@ def act(path, form):
     size = int(size)
     image = create_item(mypath)
     if not image or not size:
-        raise SecurityError, 'Path did not map to image: %s' % mypath
-    
+        return return_404(path, form)
     
     serveimage = image
     if image.width > size or image.height > size:

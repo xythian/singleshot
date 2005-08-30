@@ -2,7 +2,9 @@ import xml.sax
 import xml.sax.handler
 #from cStringIO import StringIO
 from StringIO import StringIO
-
+import time
+import re
+import sys
 
 class NamespaceMeta(type):
     def __new__(cls, name, bases, dict):
@@ -25,7 +27,7 @@ class RDF_NS(Namespace):
 
 class Photoshop_NS(Namespace):
     __uri__ = u'http://ns.adobe.com/photoshop/1.0/'
-    __elements__ = ['Headline']
+    __elements__ = ['Headline', 'DateCreated']
 
 class TIFF_NS(Namespace):
     __uri__ = u'http://ns.adobe.com/tiff/1.0/'
@@ -43,12 +45,45 @@ class EmptyXMPHeader(object):
     Headline = ''
     keywords = ()
 
+XMPDT = re.compile(r'(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)T(?P<hour>\d\d):(?P<minute>\d\d):(?P<second>\d\d)(?P<tzsign>[-+])(?P<tzhours>\d\d):(?P<tzminutes>\d\d)')
+
+XMPDT1 = re.compile(r'(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)T(?P<hour>\d\d):(?P<minute>\d\d)(?P<tzsign>[-+])(?P<tzhours>\d\d):(?P<tzminutes>\d\d)')
+
+XMPDT2 = re.compile(r'(?P<year>\d\d\d\d)-(?P<month>\d\d)-(?P<day>\d\d)')
+
+def parse_xmp_datetime(dt):
+    m = XMPDT.match(dt)
+    if m:
+        year, month, day, hour, minute, second, tzsign, tzhours, tzminutes = m.groups()
+    else:
+        m = XMPDT1.match(dt)
+        if m:
+            second = 0
+            year, month, day, hour, minute, tzsign,  tzhours, tzminutes = m.groups()
+        else:
+            m = XMPDT2.match(dt)
+            if m:
+                second = 0
+                hour = 0
+                minute = 0
+                tzsign = '+'
+                tzhours = 0
+                tzminutes = 0
+                year, month, day = m.groups()
+    tzsign = int(tzsign + '1')
+    [year, month, day, hour, minute, second] = map(int, [year, month, day, hour, minute, second])
+    tzhours, tzminutes = int(tzhours), int(tzminutes)
+    t = time.mktime((year, month, day, hour, minute, second, -1, -1, 0))
+    tzoffset = tzsign * (tzhours * 3600. + tzminutes * 60.)
+    gmt = t + tzoffset
+    return gmt
+
 class XMPHeader(EmptyXMPHeader):
     def __init__(self, body):
 #        print body
         class RDFReader(xml.sax.handler.ContentHandler):
             def startDocument(self):
-                self._cdata = StringIO()
+                self._cdata = []
                 
             def startElementNS(self, name, qname, attrs):
                 if name == RDF_NS.Description:
@@ -62,7 +97,7 @@ class XMPHeader(EmptyXMPHeader):
                 elif name == RDF_NS.Seq:
                     self._value = []
                 elif name == RDF_NS.li:
-                    self._cdata = StringIO()
+                    self._cdata = []
                 elif name == DC_NS.subject:
                     self._pname = 'keywords'
                 elif name == DC_NS.description:
@@ -70,8 +105,8 @@ class XMPHeader(EmptyXMPHeader):
 
             def endElementNS(self, name, qname):
                 if name == RDF_NS.li:
-                    self._value.append(self._cdata.getvalue())
-                    self._cdata = StringIO()
+                    self._value.append(''.join(self._cdata))
+                    self._cdata = []
                 elif name == DC_NS.subject:
                     setattr(self.target, self._pname, self._value)
                     self._value = []
@@ -81,10 +116,15 @@ class XMPHeader(EmptyXMPHeader):
 
 
             def characters(self, content):
-                self._cdata.write(content)
+                self._cdata.append(content)
         parser = xml.sax.make_parser()
         parser.setFeature(xml.sax.handler.feature_namespaces, 1)
         rdr = RDFReader()
         rdr.target = self
         parser.setContentHandler(rdr)
         parser.parse(StringIO(body))
+        for attr in ('DateTimeDigitized', 'DateCreated', 'DateTimeOriginal'):
+            try:
+                setattr(self, attr, parse_xmp_datetime(getattr(self, attr)))
+            except AttributeError:
+                pass

@@ -10,8 +10,22 @@ from xmp import XMPHeader, EmptyXMPHeader
 
 from ssconfig import CONFIG, STORE
 from cStringIO import StringIO
+import re
+import time
 
+EXIFDT = re.compile(r'(?P<year>\d\d\d\d):(?P<month>\d\d):(?P<day>\d\d) (?P<hour>\d\d):(?P<minute>\d\d):(?P<second>\d\d)')
 
+def parse_exif_date(dt):
+    dt = str(dt)
+    m = EXIFDT.match(dt)
+    if m:
+        year, month, day, hour, minute, second = m.groups()
+    else:
+        return 0.0
+    [year, month, day, hour, minute, second] = map(int, [year, month, day, hour, minute, second])
+    t = time.mktime((year, month, day, hour, minute, second, -1, -1, 0))
+    return t
+    
 
 HAS_ITPC = False
 try:
@@ -59,6 +73,37 @@ except:
 def decode_2byte(bytes):
     return ord(bytes[0]) * 256 + ord(bytes[1])
 
+def load_exif_python(path):
+    file=open(path, 'rb')
+    try:
+        try:
+            data = EXIF.process_file(file)
+        finally:
+            file.close()
+    except:
+        # file unreadable
+        data = {}
+    return data 
+
+def load_exif_pil(path):
+    data = Image.open(path)._getexif()
+    if not data:
+        return {}
+    result = {}
+    # add more tags later
+    for tag in (36868, 36867):
+        try:
+            result[ExifTags.TAGS[tag]] = data[tag]
+        except KeyError:
+            pass
+    return result
+try:
+    import Image
+    import ExifTags
+    load_exif = load_exif_pil
+except ImportError:
+    load_exif = load_exif_python
+
 class JpegImage(FilesystemEntity):
     def _load_header(self):
         return JpegHeader(self.path)
@@ -83,8 +128,8 @@ class JpegImage(FilesystemEntity):
     def _load_title(self):
         if self.xmp.Headline:
             return self.xmp.Headline
-        elif self.itpc.headline:
-            return self.itpc.headline
+#        elif self.itpc.headline:
+#            return self.itpc.headline
         elif self.itpc.title:
             return self.itpc.title
 #        elif self.comment:
@@ -97,16 +142,7 @@ class JpegImage(FilesystemEntity):
     keywords = delegate_property('xmp', 'keywords')
 
     def _load_exif(self):
-        try:
-            file=open(self.path, 'rb')
-            try:
-                data = EXIF.process_file(file)
-            finally:
-                file.close()
-        except:
-            # file unreadable
-            data = {}
-        return data 
+        return load_exif(self.path)
 
     _exif = demand_property('exif', _load_exif)
     
@@ -187,7 +223,6 @@ class JpegHeader(object):
         self.comment = body
 
     def _read_header(self, path, callbacks):
-        callbacks = dict(callbacks)
         file = open(path, 'rb')
         try:
            file.seek(0)
@@ -198,18 +233,27 @@ class JpegHeader(object):
            while (subhdr[0] == '\xFF') and callbacks:
               type = ord(subhdr[1])              
               length = decode_2byte(subhdr[2:4]) - 2
-              body = file.read(length)
-              try:                  
-                  callbacks[type](body)
+              try:
+                  callback = callbacks[type]                  
+                  body = file.read(length)
+                  callback(body)
               except KeyError:
-                  pass
+                  file.seek(length, 1)
               subhdr = file.read(4);
            return ''
         finally:
             file.close()
 
+    def _get_xmp(self):
+        if not self.__xmp_parsed and self.__xmpbody:
+            self.__xmp_parsed = XMPHeader(self.__xmpbody)
+        elif not self.__xmp_parsed:
+            self.__xmp_parsed = self.emptyxmp
+        return self.__xmp_parsed        
+
     def handle_xmp(self, body):
-        self.xmp = XMPHeader(body)
+        self.__xmpbody = body
+#        self.xmp = XMPHeader(body)
 
     def handle_app1(self, body):
         if len(body) > 4 and body[:4] == 'Exif':
@@ -219,8 +263,11 @@ class JpegHeader(object):
         pass
 #        print body
 
+    emptyxmp = EmptyXMPHeader()
+    xmp = property(_get_xmp)
     def load(self, path):
-        self.xmp = EmptyXMPHeader()
+        self.__xmp_parsed = None
+        self.__xmpbody = None
         self._read_header(path, {0xC0 : self.handle_sof,
                                  0xFE : self.handle_comment,
                                  0xE1 : self.handle_app1})

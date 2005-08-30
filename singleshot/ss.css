@@ -1,14 +1,11 @@
 
 .thumbnails {
-	background-color: #ddd;
 	text-align: center;
 }
 
 
 .thumbnail, .subdir {
-	background-color: white;
-	padding: 13px;
-	border: 2px solid black;
+	border: 8px solid black;
 	margin: 10px;
 	vertical-align: middle;
 	text-shadow: 4px 4px #333;
@@ -116,16 +113,12 @@ h1 {
 
 
 #header {
-  background: #507EA1;
-  color: #ffffff;
   border-bottom: 1px solid black;
   text-align: center;
   padding-bottom: 3px;
 }
 
 #footer {
-  background: #507EA1;
-  color: #ffffff;
   border-top: 1px solid black;
   text-align: center;
 }
@@ -143,12 +136,12 @@ h1 {
 
 body { 
    text-align: center; 
-   background: #406480;
 }
 
 #page {
   width: 50em;
   text-align: left;
+  margin: 0px auto;
 }
 
 h1, h2, h3 { 
@@ -156,14 +149,11 @@ h1, h2, h3 {
     font-family: 'Lucida Grande', Verdana, Arial, Sans-Serif;
 }
 
-#content>h1, #content>h2 {
-    border-bottom: 1px solid black;
-}
 
 #content {
   text-align: left;
-  background: #CFDCE6;    
   padding: 10px;
+  margin: 0px auto;
 }
 
 #content>h1 {
@@ -176,7 +166,6 @@ h1, h2, h3 {
 
 
 #navigation {
-  background: #E6DACF;
   border-bottom: 1px solid black;
   text-align: center;
   padding-top: 3px;
@@ -200,4 +189,23 @@ h1, h2, h3 {
 
 .softwarelist tr td {
    border-top: 1px solid black;
+}
+
+.center { margin: 0px auto; }
+
+body {    background: #878787; }
+/* .thumbnails { 	background-color: #ddd; } */
+#header { background: #303030; color: #ffffff; }
+#footer { background: #878787; color: #ffffff; }
+
+#content { background: #D4D4D4; }
+#navigation { background: #eeeeee; }
+
+#rsslink {
+   font-size: 9px;
+   font-weight: bold;
+   background-color: #FF6600;
+   color: #ffffff;
+   border: 3px solid black;
+   padding: 3px;
 }

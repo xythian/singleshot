@@ -1,3 +1,8 @@
 Options +ExecCGI
-RewriteEngine Off
+RewriteEngine On
+
+RewriteRule sscgi.py - [L]
+RewriteRule (jpg|gif|js|css|ico)$ - [L]
+RewriteRule .* - [F]
+
 AddHandler cgi-script py
