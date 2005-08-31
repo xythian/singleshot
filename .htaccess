@@ -9,11 +9,13 @@ RewriteRule (^CVS/.*) $1 [F]
 RewriteRule (^Makefile) - [F]
 RewriteRule (\.cfg) - [F]
 
+RewriteRule ^static/.*.(jpg|css|js|gif)$ - [L]
+RewriteRule ^static/(.*) singleshot/sscgi.py/static/$1 [L]
+
 # Prevent URIs that arrive directly from view/ from being rewritten
 # below to a CGI which will generate the resized image.  Only allow
 # resized images accessed through images/
 RewriteRule ^view/.* - [L]
-
 
 #
 # A request for a filtered, cached resized version image
@@ -36,7 +38,7 @@ RewriteRule ^(.*)(\.jpg)$ view/$1-full$2 [NC]
 #
 RewriteCond %{REQUEST_FILENAME} (.*)/view/(.*)/__filter_([A-Za-z0-9]+)_([^/]+)-([1-9][0-9]+|full)(\.jpg)$ [NC]
 RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule .*        singleshot/sscgi.py/resize/%1/%2/%4%6?size=%5&filter=%3 [L]
+RewriteRule .*        singleshot/sscgi.py/resize/%2/%4%6?size=%5&filter=%3 [L]
 
 
 
@@ -44,23 +46,19 @@ RewriteRule .*        singleshot/sscgi.py/resize/%1/%2/%4%6?size=%5&filter=%3 [L
 # size is not yet cached, rewrite to a cgi which will produce it
 RewriteCond %{REQUEST_FILENAME} (.*)/view/(.*)-([1-9][0-9]+|full)(\.jpg)$ [NC]
 RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule .*        singleshot/sscgi.py/resize/%1/%2%4?size=%3 [L]
-
-
-
-# RewriteRule tag/(.+)$ singleshot/sscgi.py/tag/$1
+RewriteRule .*        singleshot/sscgi.py/resize/%2%4?size=%3 [L]
 
 # If it's a request for FOO.html and FOO.jpg exists, rewrite to a CGI which
 # will make a nice wrapper page
 RewriteCond %{REQUEST_FILENAME} (.*)\.html	[NC]
 RewriteCond %1.jpg -f				[OR]
 RewriteCond %1.JPG -f
-RewriteRule .*        singleshot/sscgi.py/view/%1 [L]
+RewriteRule ^(.*).html$        singleshot/sscgi.py/view/$1 [L]
 
 # A request for a directory that exists is rewritten to the album cgi
 RewriteCond %{REQUEST_URI} /$
 RewriteCond %{REQUEST_FILENAME} -d [NC]
-RewriteRule .*        singleshot/sscgi.py/view/%{REQUEST_FILENAME} [L]
+RewriteRule .*        singleshot/sscgi.py/view/%{REQUEST_URI} [L]
 
 #
 # A request for a directory or file that does not exist is rewritten to the virtual handler
