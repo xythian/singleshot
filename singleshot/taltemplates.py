@@ -35,10 +35,12 @@ class ViewableObject(object):
     def find_macros_template(self):
         return self.find_template(self.macrostemplate)
 
+        
+
     def create_context(self):
         context = simpleTALES.Context()
         context.addGlobal("macros",
-                          self.load_template(self.find_macros_template()))
+                          self.load_template(self.find_macros_template()))        
         return context
 
 

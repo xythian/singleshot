@@ -25,18 +25,21 @@ n = time.time()
 executedir = os.path.dirname(sys.argv[0])
 sys.path.insert(0, executedir)
 
-from ssconfig import STORE, SecurityError
+from ssconfig import STORE, CONFIG, SecurityError
 
 def main():
     form = cgi.FieldStorage()
     path = os.environ['PATH_INFO'][1:]
-
     try:
         slash = path.index('/')
         action = path[:slash]
         path = path[slash+1:]
     except ValueError:
         action = 'view'
+        path = '/'
+    if path.startswith(CONFIG.url_prefix) and CONFIG.url_prefix != '/':
+        path = path[len(CONFIG.url_prefix)-1:]
+    if not path:
         path = '/'
 
     actionmodule = __import__('action_' + action, globals(), locals()) 
@@ -49,7 +52,7 @@ def main():
         print 'Exit with security error: ', msg
         sys.exit(1)
 
-if 1:
+if 0:
     import hotshot, hotshot.stats
     prof = hotshot.Profile('/tmp/ss.prof')
     prof.runcall(main)

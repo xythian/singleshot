@@ -6,7 +6,6 @@ import struct
 import shutil
 import tempfile
 import process
-from jpeg import JpegImage
 from storage import FilesystemEntity
 from properties import *
 from ssconfig import CONFIG, STORE, ConfiguredEntity

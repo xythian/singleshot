@@ -68,6 +68,18 @@ except:
         keywords = ''
         title = ''
     DUMMY_ITPC = DummyItpc()
+
+def calculate_box(size, width, height):
+    if height > width:
+        h2 = size
+        w2 = int(float(size) * (float(width) / float(height)))
+    else:
+        w2 = size
+        h2 = int(float(size) * (float(height) / float(width)))
+    if h2 < height or w2 < width:
+        return w2, h2
+    else:
+        return width, height
     
 
 def decode_2byte(bytes):
@@ -86,7 +98,10 @@ def load_exif_python(path):
     return data 
 
 def load_exif_pil(path):
-    data = Image.open(path)._getexif()
+    try:
+        data = Image.open(path)._getexif()
+    except:
+        return {}
     if not data:
         return {}
     result = {}
@@ -104,116 +119,24 @@ try:
 except ImportError:
     load_exif = load_exif_python
 
-class JpegImage(FilesystemEntity):
-    def _load_header(self):
-        return JpegHeader(self.path)
 
-    _header = demand_property('_header', _load_header)
-    comment = delegate_property('_header', 'comment')
-    height = delegate_property('_header', 'height')
-    width = delegate_property('_header', 'width')    
+
+class JpegHeader(object):
+    __metaclass__ = AutoPropertyMeta
+    def __init__(self, path):
+        self.comment = ''
+        self.height = 0
+        self.width = 0
+        self.load(path)
+        self.path = path
+        
 
     def _load_itpc(self):
         if HAS_ITPC:            
             return ItpcHeader(self.path)
         else:
             return DUMMY_ITPC
-
-    def _load_xmp(self):
-        return self._header.xmp
-
-    itpc = demand_property('_itpc', _load_itpc)
-    xmp = demand_property('_xmp', _load_xmp)
-
-    def _load_title(self):
-        if self.xmp.Headline:
-            return self.xmp.Headline
-#        elif self.itpc.headline:
-#            return self.itpc.headline
-        elif self.itpc.title:
-            return self.itpc.title
-#        elif self.comment:
-#            return self.comment
-        else:
-            return self.filename
-
-    title = demand_property('_title', _load_title)    
-    caption = delegate_property('itpc', 'caption')
-    keywords = delegate_property('xmp', 'keywords')
-
-    def _load_exif(self):
-        return load_exif(self.path)
-
-    _exif = demand_property('exif', _load_exif)
-    
-    def get_exif(self, key):
-        try:
-            return self._exif[key].printable
-        except KeyError:
-            return 'Unknown'
-
-    def dirty(self):
-        pass
-
-    def _do_update(self, operation, *args):
-        tmpimage = tempfile.mktemp()
-        stats = os.stat(self.path)
-        try:
-            if operation(tmpimage, *args):
-                shutil.copyfile(tmpimage, self.path)
-                os.remove(tmpimage)
-                os.utime(self.path, stats[7:9])
-                self.dirty()                
-                return 1
-        finally:
-            if os.path.exists(tmpimage):
-                os.remove(tmpimage)
-        return 0
-
-    def update_comment(self, comment):
-        self._do_update(self._update_comment, comment)        
-            
-    def _update_comment(self, tmpimage, comment):
-        wrjpgcom = os.path.join(CONFIG.libjpegbinPath, 'wrjpgcom')
-        outfile = open(tmpimage, 'wb')        
-        cmd = [wrjpgcom, "-replace", self.path]
-        trace("Running: %s, tmpfile = %s", repr(cmd), tmpimage)
-        p = process.ProcessProxy(cmd=cmd, stdout=outfile, env=CONFIG.getInvokeEnvironment())
-        p.stdin.write(comment)
-        p.stdin.close()
-        r = p.wait()        
-        p.close()
-        outfile.close()
-        if r != 0:
-            return 0
-        return 1
-
-    def rotate(self, rotation):
-        rotation = int(rotation)
-        if rotation % 90 != 0:
-            return 0
-        self._do_update(self._do_rotate, rotation)
-        
-    def _do_rotate(self, tmpimage, rotation):
-        jpegtran = os.path.join(CONFIG.libjpegbinPath, 'jpegtran')
-        cmd = [jpegtran, '-copy', 'all', '-rotate', str(rotation), '-outfile', tmpimage, self.path]
-        trace('Running: %s', repr(cmd))
-        output = StringIO()
-        p = process.ProcessProxy(cmd=cmd, stderr=output, stdout=output, env=CONFIG.getInvokeEnvironment())
-        r = p.wait()
-        if r != 0:
-            trace("Running jpegtran %s -> %s failed: %s", self.path, tmpimage, output.getvalue())
-            return 0
-        p.close()
-        return 1
-
-
-class JpegHeader(object):
-    def __init__(self, path):
-        self.comment = ''
-        self.height = 0
-        self.width = 0
-        self.load(path)
+     
 
     def handle_sof(self, body):
         self.height = decode_2byte(body[1:3])
@@ -264,7 +187,7 @@ class JpegHeader(object):
 #        print body
 
     emptyxmp = EmptyXMPHeader()
-    xmp = property(_get_xmp)
+
     def load(self, path):
         self.__xmp_parsed = None
         self.__xmpbody = None

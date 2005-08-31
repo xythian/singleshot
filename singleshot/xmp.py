@@ -78,45 +78,45 @@ def parse_xmp_datetime(dt):
     gmt = t + tzoffset
     return gmt
 
+class RDFReader(xml.sax.handler.ContentHandler):
+    def startDocument(self):
+        self._cdata = []
+        
+    def startElementNS(self, name, qname, attrs):
+        uri, qn = name
+        if uri == RDF_NS.URI:
+            if qn == RDF_NS.Description[1]:
+                for uri, qn in attrs.getNames():
+                    if uri in (EXIF_NS.URI, TIFF_NS.URI, Photoshop_NS.URI):
+                        setattr(self.target, str(qn), str(attrs.getValue((uri, qn))))
+            elif qn in (RDF_NS.Bag[1], RDF_NS.Alt[1], RDF_NS.Seq[1]):
+                self._value = []
+            elif qn == RDF_NS.li[1]:                
+                self._cdata = []
+        elif name == DC_NS.subject:
+            self._pname = 'keywords'
+        elif name == DC_NS.description:
+            self._pname = 'caption'
+
+    def endElementNS(self, name, qname):
+        if name == RDF_NS.li:
+            self._value.append(''.join(self._cdata))
+            self._cdata = []
+        elif name == DC_NS.subject:
+            setattr(self.target, self._pname, self._value)
+            self._value = []
+        elif name == DC_NS.description:
+            setattr(self.target, self._pname, self._value)
+            self._value = []
+            
+
+    def characters(self, content):
+        self._cdata.append(content)
+
+
 class XMPHeader(EmptyXMPHeader):
     def __init__(self, body):
 #        print body
-        class RDFReader(xml.sax.handler.ContentHandler):
-            def startDocument(self):
-                self._cdata = []
-                
-            def startElementNS(self, name, qname, attrs):
-                if name == RDF_NS.Description:
-                    for uri, qn in attrs.getNames():
-                        if uri in (EXIF_NS.URI, TIFF_NS.URI, Photoshop_NS.URI):
-                            setattr(self.target, str(qn), str(attrs.getValue((uri, qn))))                        
-                elif name == RDF_NS.Bag:
-                    self._value = []
-                elif name == RDF_NS.Alt:
-                    self._value = []
-                elif name == RDF_NS.Seq:
-                    self._value = []
-                elif name == RDF_NS.li:
-                    self._cdata = []
-                elif name == DC_NS.subject:
-                    self._pname = 'keywords'
-                elif name == DC_NS.description:
-                    self._pname = 'caption'
-
-            def endElementNS(self, name, qname):
-                if name == RDF_NS.li:
-                    self._value.append(''.join(self._cdata))
-                    self._cdata = []
-                elif name == DC_NS.subject:
-                    setattr(self.target, self._pname, self._value)
-                    self._value = []
-                elif name == DC_NS.description:
-                    setattr(self.target, self._pname, self._value)
-                    self._value = []
-
-
-            def characters(self, content):
-                self._cdata.append(content)
         parser = xml.sax.make_parser()
         parser.setFeature(xml.sax.handler.feature_namespaces, 1)
         rdr = RDFReader()

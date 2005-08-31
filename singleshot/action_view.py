@@ -2,24 +2,28 @@
 
 import os
 import sys
-import traceback
-
-from albums import create_item
-from ssconfig import STORE
-
+from albums import load_view
+from ssconfig import STORE, CONFIG
 from errors import return_404
 
 def act(actionpath, form):
-    path = STORE.check_path(actionpath)
-    item = create_item(path)
-    if item:
-        view_item(item, form)
-    else:
+    if not do_view(actionpath, form):
         return_404(actionpath, form)
 
-def view_item(item, form):
-    from itemcontexts import wrap_context
-    item = wrap_context(item, form)
-    item.cgi_view()
+def do_view(path, form):
+    if path.endswith('.html'):
+        path = path[:-5]
+    try:
+        ctxname = form.getfirst('in')
+    except KeyError:
+        ctxname = ''
+    parent = None
+    if ctxname:
+        parent = load_view(ctxname)
+    view = load_view(path, parent=parent)
+    if view:
+        view.cgi_view()
+    return view
+
         
 

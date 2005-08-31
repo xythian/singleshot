@@ -4,6 +4,18 @@ from storage import FilesystemEntity
 import os
 import fnmatch
 
+def read_config(fspath, defaults):
+    cfg = ConfigParser()
+    for section in defaults.keys():
+        cfg.add_section(section)
+    for option in defaults[section].keys():
+        cfg.set(section, option, str(defaults[section][option]))
+    try:
+        cfg.read(fspath)
+    except:
+        pass
+    return cfg
+
 class ConfiguredEntity(FilesystemEntity):
     config_filename = None
     defaults = {}

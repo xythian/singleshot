@@ -10,12 +10,15 @@ import sys
 
 def act(actionpath, form):
     absoluteurl = 'http//%s' % (os.environ['HTTP_HOST'],)
-    images = [create_item(path) for path in ITEMLOADER.itemData.recent_images(10)]
+    images = [create_item(path) for path in ITEMLOADER.recent_images(10)]
     def toitem(image):
         s = StringIO()
         image.view(s, viewname='rssitem',
                    contextdata={'absoluteitemhref' : absoluteurl + image.href})
-        desc = s.getvalue()
+        try:
+            desc = unicode(s.getvalue())
+        except:
+            desc = ''
         lnk = absoluteurl + image.href
         return RSS2.RSSItem(title = image.title,
                             link = lnk,

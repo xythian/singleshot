@@ -1,6 +1,58 @@
 import sys
 from ConfigParser import ConfigParser
 
+class AutoPropertyMeta(type):
+    def process_properties(cls, name, bases, dict):
+        for key, val in dict.items():
+            if key.startswith('_get_') and callable(val):
+                pname = key[5:]
+                if dict.has_key(pname):
+                    continue
+                dict[pname] = property(val)
+            elif key.startswith('_load_') and callable(val):
+                pname = key[6:]
+                if dict.has_key(pname):
+                    continue
+                dict[pname] = demand_property(pname, val)
+    process_properties = classmethod(process_properties)
+    def __new__(cls, name, bases, dict):
+        cls.process_properties(name, bases, dict)
+        return super(AutoPropertyMeta, cls).__new__(cls, name, bases, dict)
+    
+
+class ViewMeta(AutoPropertyMeta):
+    def process_properties(cls, name, bases, dict):
+        super(ViewMeta, cls).process_properties(name, bases, dict)
+
+        def any_has(name):
+            for b in bases:
+                if hasattr(b, name):
+                    return True
+            return False
+        def process_of(c):
+            if c == type:
+                return
+            for key, val in c.__dict__.items():
+                if key.startswith('_'):
+                    continue
+                elif any_has(name):
+                    continue
+                elif dict.has_key(key):
+                    continue
+                def make_getter(key):
+                    def getter(self):
+                        return getattr(self._of, key)
+                    return getter
+                dict[key] = property(make_getter(key))
+            for b in c.__bases__:
+                process_of(b)
+        try:
+            view_of = dict['__of__']
+            process_of(view_of)                        
+        except KeyError:
+            pass
+    process_properties = classmethod(process_properties)    
+
 def trace(v, *args):
     msg = v
     if args:
@@ -42,89 +94,12 @@ def demand_property(name, loadfunc):
         
     return property(_get_demand_property, None, _flush_demand_property)
 
-def virtual_readonly_property(name):
-    getter = '_get_%s' % name
-    def _get(self):
-        try:
-            g = getattr(self, getter)
-        except AttributeError:
-            return None
-        return g()
-    return property(_get)
-
-def virtual_property(name):
-    getter = '_get_%s' % name
-    setter = '_set_%s' % name
-    def _get(self):
-        try:
-            g = getattr(self, getter)
-        except AttributeError:
-            return None
-        return g()
-        
-    def _set(self, value):
-        try:
-            g = getattr(self, setter)
-        except AttributeError:
-            return None
-        return g(value)    
-    return property(_get, _set)
-
-
-def virtual_demand_property(name):
-    loader_name = '_load_%s' % name
-    value_name = '_%s_value' % name
-    def _get_vdemand_property(self):
-        v = None
-        try:
-            return getattr(self, value_name)
-        except AttributeError:
-            try:
-                loadfunc = getattr(self, loader_name)
-            except AttributeError:
-                v = None
-                loadfunc = None
-            if loadfunc:
-                v = loadfunc()
-            setattr(self, value_name, v)
-            return v
-
-    def _flush_vdemand_property(self):
-        try:
-            delattr(self, value_name)
-        except AttributeError:
-            # ok, not loaded
-            pass
-        
-    return property(_get_vdemand_property, None, _flush_vdemand_property)
-
-    
-    
 
 def config_property(key, section='DEFAULT', get='get'):
     def get_config_property(self):
         trace('config_property %s.%s [%s]', self, key, section)
         return getattr(self.config, get)(section, key)
     return property(get_config_property)
-
-def writable_config_property(key, section='DEFAULT', get='get'):
-    def get_config_property(self):
-        trace('config_property %s.%s [%s]', self, key, section)
-        return getattr(self.config, get)(section, key)
-    def set_config_property(self, value):
-        trace('config_property_set %s.%s [%s] = %s', self, key, section, value)
-        if get_config_property(self) == value:
-            return
-        cfg = ConfigParser()
-        cfg.read(self._config_path()[-1])
-        if not cfg.has_section(section):
-            cfg.add_section(section)
-        cfg.set(section, key, value)
-        fh = file(self._config_path()[-1], "w")
-        cfg.write(fh)
-        fh.close()
-        del self.config
-    return property(get_config_property, set_config_property)
 
 def delegate_property(name, propname):
     def _delegate_get(self):
