@@ -31,13 +31,12 @@ You will need the following software installed on your web server
 to install Singleshot.
 
    * Apache http://www.apache.org/ with mod_rewrite
-   * Python 2.1+ http://www.python.org/
-   * Cheetah (template engine) http://www.cheetahtemplate.org/
-   * ImageMagick http://www.imagemagick.org/
+   * Python 2.2+ http://www.python.org/
+   * ImageMagick http://www.imagemagick.org
    * libjpeg http://www.ijg.org/ (for edit mode only)
 
 Singleshot relies on setting mod_rewrite directives in .htaccess.
-This facility needs to be enabled on the web.
+This facility needs to be enabled on the web server.
 
 You will also need an appropriate unpacking tool (unzip or
 tar/gunzip) to unpack the Singleshot archive.
@@ -86,13 +85,7 @@ process.
    6. Update the root .htaccess file's RewriteBase to reflect the URL
 for that directory.
 
-7. If you installed Cheetah in your home directory, edit
-singleshot/albums.py and just before `import Cheetah...' add a line
-pointing to your install like:
-
-sys.path.insert(0, '/home/user/lib/python');
-
-8. Create a _singleshot.cfg in the album root similar to the following.
+7. Create a _singleshot.cfg in the album root similar to the following.
 
 [singleshot]
 url_prefix=/pics/          ; url for the album root
@@ -102,7 +95,7 @@ imagemagick=/usr/local/bin ; path to directory with ImageMagick binaries
 libjpegbin=/usr/local/bin  ; path to directory with libjpeg binaries
 
 
-9. Fill your new albums with images. You can put them in the root or
+8. Fill your new albums with images. You can put them in the root or
 in subdirectories. Do not use filenames with - (dash) in
 them. Singleshot uses -size suffixes internally and will not be happy
 if your image names have similar components.
