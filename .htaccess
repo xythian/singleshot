@@ -48,11 +48,8 @@ RewriteCond %{REQUEST_FILENAME} (.*)/view/(.*)-([1-9][0-9]+|full)(\.jpg)$ [NC]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule .*        singleshot/sscgi.py/resize/%2%4?size=%3 [L]
 
-# If it's a request for FOO.html and FOO.jpg exists, rewrite to a CGI which
-# will make a nice wrapper page
+# If it's a request for FOO.html, rewrite to the view page
 RewriteCond %{REQUEST_FILENAME} (.*)\.html	[NC]
-RewriteCond %1.jpg -f				[OR]
-RewriteCond %1.JPG -f
 RewriteRule ^(.*).html$        singleshot/sscgi.py/view/$1 [L]
 
 # A request for a directory that exists is rewritten to the album cgi
