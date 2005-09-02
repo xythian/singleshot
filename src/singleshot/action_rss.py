@@ -1,16 +1,21 @@
+import PyRSS2Gen as RSS2
 
-from albums import ITEMLOADER, create_item
-from ssconfig import CONFIG
 from datetime import datetime
 from StringIO import StringIO
-import PyRSS2Gen as RSS2
 import codecs
 import os
 import sys
 
-def act(actionpath, form):
-    absoluteurl = 'http//%s' % (os.environ['HTTP_HOST'],)
-    images = [create_item(path) for path in ITEMLOADER.recent_images(10)]
+def act(actionpath, request):
+    absoluteurl = 'http://%s' % (request.host,)
+    load_view = request.store.load_view
+
+    config = request.config
+    rsstitle = config.get('feed', 'title')
+    rssdesc = config.get('feed', 'description')
+    rsscount = int(config.get('feed', 'recentcount'))
+    
+    images = [load_view(path) for path in request.loader.recent_images(rsscount)]
     def toitem(image):
         s = StringIO()
         image.view(s, viewname='rssitem',
@@ -26,9 +31,9 @@ def act(actionpath, form):
                             guid = RSS2.Guid(lnk),
                             pubDate = datetime.fromtimestamp(image.publish_time))
     rss = RSS2.RSS2(
-        title = "Ken's recent photos feed",
+        title = rsstitle,
         link = absoluteurl,
-        description = "Recently published photos from Ken Fox",
+        description = rssdesc,
         lastBuildDate = datetime.now(),
         items = [toitem(image) for image in images]
         )

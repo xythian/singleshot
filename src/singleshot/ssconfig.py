@@ -1,6 +1,6 @@
 from ConfigParser import ConfigParser
-from properties import *
-from storage import FilesystemEntity
+from properties import demand_property
+from singleshot.storage import FilesystemEntity
 import os
 import fnmatch
 
@@ -44,18 +44,17 @@ class ConfiguredEntity(FilesystemEntity):
 class SecurityError(Exception):
     pass
 
+
+
 class Store(object):
-    def __init__(self):
-        root = os.path.dirname(sys.argv[0]) # the cgi path
-        root = os.path.abspath(root)        # the cgi directory
-        root = os.path.dirname(root)        # its parent
+    def __init__(self, root, template_root=None):
+        
         self.root = root                    # is the root
         
-        self.ss_root = os.path.join(root, 'singleshot')
-        if os.path.exists(os.path.join(self.root, 'templates')):
-            self.template_root = os.path.join(self.root, 'templates')
+        if template_root:
+            self.template_root = template_root
         else:
-            self.template_root = os.path.join(self.ss_root, 'templates')
+            self.template_root = os.path.join(self.root, 'templates')
         self.image_root = root        
         self.view_root = os.path.join(root, 'view')
         self.static_root = os.path.join(root, 'static')
@@ -79,44 +78,28 @@ class Store(object):
     def find_template(self, filename):
         return os.path.join(self.template_root, filename)
 
-STORE = Store()
-
-
 class SingleshotConfig(ConfiguredEntity):
-    defaults = { 'singleshot': { 'url_prefix' : '/singleshot/',
-                                 'ss_uri' : ''
-                               },
-                     'paths' : { 'imagemagick' : '/usr/bin',
-                                 'libjpegbin' : '/usr/bin',
-                                 'invokepath' : '/bin:/usr/bin',
-                                },
-                      'edit' : { 'password' : 'singleshot',
-                                 'enabled' : 'false'
-		               }
-              }
+    defaults = {    'paths' : { 'invokePath' : '/bin:/usr/bin' },
+                    'feed' : { 'title' : '',
+                              'description' : '',
+                               'recentcount' : '10'
+                              },
+                    
+               }
     _default_imagesizes =  {  'mini' : 40,
                              'thumb' : 200,
                           'bigthumb' : 350,
                               'view' : 600,
-                              'full' : 1200
+                             'large' : 1200
                            }
 
-    def _get_ssuri(self):
-        result = self.config.get('singleshot', 'ss_uri')
-	if result:
-	    return result
-	return self.url_prefix + 'singleshot'
+    def __init__(self, store, baseurl='/'):
+        super(SingleshotConfig, self).__init__(store.root)
+        self.url_prefix = baseurl
+        self.store = store
+
 
     config_filename = '_singleshot.cfg'
-    url_prefix = config_property('url_prefix', 'singleshot')
-    ssuri = property(_get_ssuri)
-
-    imagemagickPath = config_property('imagemagick', 'paths')
-    libjpegbinPath = config_property('libjpegbin', 'paths')
-    invokePath = config_property('invokepath', 'paths')
-
-    editPassword = config_property('password', 'edit')
-    editEnabled = config_property('enabled', 'edit')
 
     def getInvokeEnvironment(self):
         return {'PATH' : self.invokePath}
@@ -131,9 +114,6 @@ class SingleshotConfig(ConfiguredEntity):
 
     def _get_availableSizes(self):
         return tuple(self.sizeNames.keys())
-        # keep this because, quoth Ken: "availalbe sizes may be a superset of named sizes"
-        opts = self.config.options('imagesizes')
-        return [int(self.config.get('imagesizes', key)) for key in opts]
             
     availableSizes = demand_property('availableSizes', _get_availableSizes)
 
@@ -147,19 +127,33 @@ class SingleshotConfig(ConfiguredEntity):
         name = os.path.basename(path).lower()
         if name == 'cvs':
             return True
-        elif path in (STORE.view_root, STORE.ss_root):
+        elif path.startswith(self.store.view_root):
             return True
-        elif path.startswith(STORE.view_root):
+        elif path.startswith(self.store.template_root):
             return True
-        elif path.startswith(STORE.template_root):
-            return True
-        elif path.startswith(STORE.ss_root):
-            return True
-        elif path.startswith(STORE.static_root):
+        elif path.startswith(self.store.static_root):
             return True
         elif fnmatch.fnmatch(name, '.*'):
             return True
         else:
             return False
 
-CONFIG = SingleshotConfig(STORE.root)
+def create_store(root,
+                 baseurl='/singleshot',
+                 template_root=None):
+    from singleshot.views import ViewLoader
+    from singleshot.fsloader import FilesystemLoader, SingleshotLoader
+    from singleshot import imageprocessor
+
+    store = Store(root, template_root=template_root)    
+    store.config = SingleshotConfig(store, baseurl=baseurl)
+    fl = FilesystemLoader(store)
+    ssl = SingleshotLoader(store, fl)
+    store.loader = ssl
+    store.load_view = ViewLoader(store).load_view
+    store.processor = imageprocessor.create(store)
+    ssl.load()
+    return store
+
+
+

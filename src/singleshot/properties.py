@@ -8,7 +8,13 @@ class AutoPropertyMeta(type):
                 pname = key[5:]
                 if dict.has_key(pname):
                     continue
-                dict[pname] = property(val)
+                getter = val
+                if dict.has_key('_set_' + pname):
+                    setter = dict['_set_' + pname]
+                    prop = property(getter, setter)
+                else:
+                    prop = property(getter)
+                dict[pname] = prop
             elif key.startswith('_load_') and callable(val):
                 pname = key[6:]
                 if dict.has_key(pname):

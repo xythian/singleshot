@@ -1,4 +1,4 @@
-from properties import *
+from singleshot.properties import *
 import os
 
 class FilesystemEntity(object):

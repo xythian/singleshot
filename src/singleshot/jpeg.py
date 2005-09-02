@@ -1,14 +1,12 @@
+from singleshot.properties import *
+from singleshot.storage import FilesystemEntity
+from singleshot.xmp import XMPHeader, EmptyXMPHeader
+
+import EXIF
+
 import os
 import tempfile
 import shutil
-
-import EXIF
-import process
-from properties import *
-from storage import FilesystemEntity
-from xmp import XMPHeader, EmptyXMPHeader
-
-from ssconfig import CONFIG, STORE
 from cStringIO import StringIO
 import re
 import time
@@ -84,41 +82,6 @@ def calculate_box(size, width, height):
 
 def decode_2byte(bytes):
     return ord(bytes[0]) * 256 + ord(bytes[1])
-
-def load_exif_python(path):
-    file=open(path, 'rb')
-    try:
-        try:
-            data = EXIF.process_file(file)
-        finally:
-            file.close()
-    except:
-        # file unreadable
-        data = {}
-    return data 
-
-def load_exif_pil(path):
-    try:
-        data = Image.open(path)._getexif()
-    except:
-        return {}
-    if not data:
-        return {}
-    result = {}
-    # add more tags later
-    for tag in (36868, 36867):
-        try:
-            result[ExifTags.TAGS[tag]] = data[tag]
-        except KeyError:
-            pass
-    return result
-try:
-    import Image
-    import ExifTags
-    load_exif = load_exif_pil
-except ImportError:
-    load_exif = load_exif_python
-
 
 
 class JpegHeader(object):

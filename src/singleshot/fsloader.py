@@ -1,65 +1,56 @@
-from storage import FilesystemEntity
-from ssconfig import CONFIG, STORE, read_config
-from jpeg import JpegHeader, parse_exif_date, load_exif, calculate_box
+from singleshot.storage import FilesystemEntity
+from singleshot.ssconfig import read_config
+from singleshot.jpeg import JpegHeader, parse_exif_date, calculate_box
+from singleshot.model import ContainerItem, ImageItem, MONTHS, DynamicContainerItem
+from singleshot import imageprocessor
+
 import time
 import os
 from datetime import datetime
-from model import ContainerItem, ImageItem, MONTHS, DynamicContainerItem
 from cStringIO import StringIO
-import cPickle
+#import cPickle as pickle
+import pickle
 import sys
-import imageprocessor
 
-IMAGE_EXTENSIONS = ('.jpg', '.JPG')
-IMAGESIZER = imageprocessor.select_processor()
 
-def find_publish_time(header, img):
-        t = 0.0
-        for search in ('DateTimeDigitized', 'DateTimeOriginal', 'DateCreated'):
-            if hasattr(header.xmp, search):
-                t = getattr(header.xmp, search)
-                break        
-        if not t:
-            exif = load_exif(img.rawimagepath)
-            try:
-                et = exif['EXIF DateTimeDigitized']
-                t = parse_exif_date(et)
-            except KeyError:
-                pth = os.path.dirname(img.rawimagepath)
-                p = month_dir(pth)
-                if p:
-                    year, month, t = p
-            if not t:
-                t = os.stat(img.rawimagepath).st_mtime
-        return t
+class FSLoader(object):
+    def __init__(self, store):
+        self.store = store
+        self.config = store.config
 
-def load_image_item(st, path, fspath):
-    header = JpegHeader(fspath)
-    img = ImageItem()
-    img.path = path
-    if header.xmp.Headline:
-        img.title = header.xmp.Headline
-    elif header.itpc.title:
-        img.title = header.itpc.title
-    else:
-        img.title = os.path.splitext(os.path.basename(fspath))[0]
-    img.caption = header.itpc.caption
-    img.rawimagepath = fspath
-    img.height = header.height
-    img.width = header.width
-    img.publish_time = find_publish_time(header, img)
-    img.keywords = header.xmp.keywords
-    dirpath, img.filename = os.path.split(fspath)
-    rootzor = dirpath[len(STORE.root)+1:]
-    img.viewfilepath = os.path.join(STORE.view_root, rootzor)
-    return img
+    def handles(self, path, ext, fspath):
+        return False
+    
 
-def override_template(fspath, name):
-    path = os.path.join(fspath, name)
-    if os.path.exists(path):
-        return path
-    else:
-        return STORE.find_template(name)
+class ImageFSLoader(FSLoader):
+    def handles(self, path, ext, fspath):
+        return self.store.processor.handles(ext, fspath)
+
+    def load_path(self, path, ext, fspath):
+        processor = self.store.processor
+        
+        if path.endswith(ext):
+            path = path[:-len(ext)]        
+        img = ImageItem()
+        img.path = path
+        img.aliases = (path + ext,)
+        img.rawimagepath = fspath        
+        processor.load_metadata(img, ext, fspath)
+        if not img.publish_time:
+            pth = os.path.dirname(img.rawimagepath)
+            p = month_dir(pth)
+            if p:
+                year, month, t = p
+                img.publish_time = t                            
+            else:
+                img.publish_time = os.stat(img.rawimagepath).st_mtime
+        if not img.title:
+            img.title = img.filename
+        dirpath, img.filename = os.path.split(fspath)
+        rootzor = dirpath[len(self.store.root)+1:]
+        img.viewfilepath = os.path.join(self.store.view_root, rootzor)
+        return img       
+
 
 def month_dir(fspath):
     p2, p1 = os.path.split(fspath)
@@ -75,67 +66,118 @@ def month_dir(fspath):
         return None
     
 
-def load_directory_item(st, path, fspath):
-    d = ContainerItem()
-    config = read_config(os.path.join(fspath, '_album.cfg'),
-                         { 'album': { 'title' : '',
-                                      'highlightimage' : '',
-                                      'order' : 'dir,title',
-                                      }
-                           })           
-    d.order = config.get('album', 'order')
-    d.viewpath = override_template(fspath, 'album.html')
-    d.imageviewpath = override_template(fspath, 'view.html')
-    d.title = config.get('album', 'title')
-    if not d.title:
-        mdir = month_dir(fspath)
-        if mdir:
-            year, month, d.publish_time = mdir
-            d.title = '%s %d' % (MONTHS[month-1], year)
-        else:
-            d.title = os.path.basename(fspath)
-    if not d.publish_time:
-        d.publish_time = os.stat(fspath).st_mtime
-    d.path = path
-    contents = []
-    l = len(STORE.root)
-    for name in os.listdir(fspath):
-        fspath1 = os.path.join(fspath, name)
-        if CONFIG.ignore_path(fspath1):
-            continue
-        name, ext = os.path.splitext(name)
-        if os.path.isdir(fspath1):            
-            contents.append(fspath1[l:])
-        elif ext in IMAGE_EXTENSIONS:
-            contents.append(fspath1[l:-4])
-            
-    d.contents = contents
-    return d
 
-def load_item(path):
-    if path.endswith('/') and len(path) > 1:
-        path = path[:-1]
-    if path.startswith(STORE.root):
-        fspath = path
-        path = path[len(STORE.root):]
-    else:
-        fspath = os.path.join(STORE.root, path[1:])
-    if not path:
-        path = '/'
-    try:
-        if CONFIG.ignore_path(fspath):
-            return None
-        if os.path.isdir(fspath):
-            return load_directory_item(os.stat(fspath), path, fspath)
+class DirectoryFSLoader(FSLoader):
+    def __init__(self, store, load_item):
+        super(DirectoryFSLoader, self).__init__(store)
+        self._load_item = load_item
+        
+    def handles(self, path, ext, fspath):
+        return os.path.isdir(fspath)
+
+    def override_template(self, fspath, name):
+        path = os.path.join(fspath, name)
+        if os.path.exists(path):
+            return path
         else:
-            for ext in IMAGE_EXTENSIONS:
-                try:
-                    st = os.stat(fspath + ext)
-                    return load_image_item(st, path, fspath + ext)
-                except OSError:
-                    pass
+            return self.store.find_template(name)
+
+    def load_path(self, path, ext, fspath):
+        d = ContainerItem()
+        config = read_config(os.path.join(fspath, '_album.cfg'),
+                             { 'album': { 'title' : '',
+                                          'highlightimage' : '',
+                                          'order' : 'dir,title',
+                                          }
+                               })           
+        d.order = config.get('album', 'order')
+        d.viewpath = self.override_template(fspath, 'album.html')
+        d.imageviewpath = self.override_template(fspath, 'view.html')
+        d.title = config.get('album', 'title')
+        if not d.title:
+            mdir = month_dir(fspath)
+            if mdir:
+                year, month, d.publish_time = mdir
+                d.title = '%s %d' % (MONTHS[month-1], year)
+            else:
+                d.title = os.path.basename(fspath)
+        if not d.publish_time:
+            d.publish_time = os.stat(fspath).st_mtime
+        d.path = path
+        contents = []
+        l = len(self.store.root)
+        for name in os.listdir(fspath):
+            fspath1 = os.path.join(fspath, name)
+            if self.config.ignore_path(fspath1):
+                continue
+            path1 = fspath1[l:]
+            if self._load_item(path1):
+                contents.append(path1)
+        d.contents = contents
+        return d
+
+class ItemLoader(object):
+    def load_item(self, path):
         return None
-    except OSError:
+
+    def walk(self):
+        def walk(load, item):
+            todo = [item]
+            while todo:
+                item = todo.pop()
+                if item:
+                    yield item
+                else:
+                    continue
+                if item.iscontainer:
+                    for path in item.contents:
+                        todo.append(load(path))    
+        return walk(self.load_item, self.load_item('/'))
+
+class MemoizeLoader(ItemLoader):
+    def __init__(self, load_item=None):
+        if load_item:
+            self._load_item = load_item
+        self._cache = {}
+
+    def load_item(self, path):
+        try:
+            return self._cache[path]
+        except KeyError:
+            v = self._load_item(path)
+            self._cache[path] = v
+            return v
+
+class FilesystemLoader(MemoizeLoader):
+    def __init__(self, store):
+        super(FilesystemLoader, self).__init__()
+        self.store = store
+        self.config = store.config
+        self.loaders = [ImageFSLoader(store),
+                        DirectoryFSLoader(store, self.load_item)]
+        
+    def _load_item(self, path):
+        if path.endswith('/') and len(path) > 1:
+            path = path[:-1]
+        if path.startswith(self.store.root):
+            fspath = path
+            path = path[len(self.store.root):]
+        elif not path:
+            path = '/'            
+        fspath = os.path.join(self.store.root, path[1:])
+#        try:
+        def x():
+            st = os.stat(fspath)
+            bn = os.path.split(fspath)[1]
+            name, ext = os.path.splitext(bn)
+            if self.config.ignore_path(fspath):
+                return None
+            for loader in self.loaders:
+                if loader.handles(path, ext, fspath):
+                    return loader.load_path(path, ext, fspath)
+#        except OSError, msg:
+#            pass
+        return x()
         return None
 
 class ImageSize(FilesystemEntity):
@@ -144,28 +186,24 @@ class ImageSize(FilesystemEntity):
     It may or may not represent something already in the cache.
     """
     def __init__(self,
+                 store=None,
                  image=None,
                  size=None,
                  height=None,
                  width=None,
-                 mtime=None,
-                 flt=None):        
+                 mtime=None):
         self.image = image
         self.height = height
         self.width = width
         self.size = size
         self.imagemtime = mtime
+        self.store = store
+        self.config = store.config
         pn, fn = os.path.split(image.path)
         bn, ext = os.path.splitext(image.filename)
-        if flt:
-            filename = '__filter_%s_%s-%s.jpg' % (flt,
-                                                bn,
-                                                size)
-        else:
-            filename = '%s-%s.jpg' % (bn,
-                                      size)
-        self.filter = flt
-        self.href = CONFIG.url_prefix + pn[1:] + '/' + filename
+        filename = '%s-%s.jpg' % (bn,
+                                  size)
+        self.href = self.config.url_prefix + pn[1:] + '/' + filename
         path = os.path.join(image.viewfilepath, filename) 
         super(ImageSize, self).__init__(path)
 
@@ -179,21 +217,6 @@ class ImageSize(FilesystemEntity):
 
     uptodate = property(_get_uptodate)
 
-    def filtered(self, flt=None):
-        if not flt:
-            return self
-        return ImageSize(self.image, self.size, self.height, self.width, mtime=self.imagemtime, flt=flt)
-
-    def filters(self):
-        try:
-            return self.__filters
-        except AttributeError:
-            fltd = {}
-            for flt in IMAGESIZER.list_filters():
-                fltd[flt] = self.filtered(flt=flt)
-            self.__filters = fltd
-            return self.__filters
-        
     def ensure(self):
         if self.uptodate:
             return        
@@ -202,11 +225,9 @@ class ImageSize(FilesystemEntity):
     def generate(self):
         if not os.path.exists(self.image.viewfilepath):
             os.makedirs(self.image.viewfilepath)
-        IMAGESIZER.execute(source=self.image.rawimagepath,
-                           dest=self.path,
-                           size=self.size,
-                           flt=self.filter)                           
-
+        self.store.processor.execute(source=self.image.rawimagepath,
+                                     dest=self.path,
+                                     size=self.size)
     def expire(self):
         if self.exists:    
             os.remove(self.path)
@@ -215,13 +236,16 @@ class ImageSize(FilesystemEntity):
 class ImageSizes(dict):
     def __init__(self, image):
         self.__image = image
+        store = image.store
         w, h = image.width, image.height
         available = []
+        self.config = store.config
         for box in self.availableSizes:
             szname = self.sizeNames[box]
             width, height = calculate_box(box, w, h)
             s = os.stat(image.rawimagepath).st_mtime
-            sz = ImageSize(image=image,
+            sz = ImageSize(store=store,
+                           image=image,
                            size=box,
                            width=width,
                            height=height,
@@ -243,10 +267,10 @@ class ImageSizes(dict):
         return paths
 
     def _get_availableSizes(self):
-        return CONFIG.availableSizes
+        return self.config.availableSizes
 
     def _get_sizeNames(self):
-        return CONFIG.sizeNames
+        return self.config.sizeNames
 
     availableSizes = property(_get_availableSizes)
     sizeNames = property(_get_sizeNames)
@@ -279,39 +303,16 @@ class ImageYear(object):
 class ItemData(object):
     pass
 
-class MemoizeLoader(object):
-    def __init__(self, load_item=load_item):
-        self._load_item = load_item
-        self._cache = {}
 
-    def load_item(self, path):
-        try:
-            return self._cache[path]
-        except KeyError:
-            v = self._load_item(path)
-            self._cache[path] = v
-            return v
 
-def loaderwalk(load_func):
-    def walk(item):
-        todo = [item]
-        while todo:
-            item = todo.pop()
-            if item:
-                yield item
-            if item.iscontainer:
-                for path in item.contents:
-                    todo.append(load_item(path))        
-    item = load_func('/')
-    return walk(item)
+class SingleshotLoader(ItemLoader):
+    def __init__(self, store, parent=None):
+        self._cachepath = os.path.join(store.view_root, '.itemcache')
+        self._parent = parent
+        self._load_item = parent.load_item
+        self.store = store
 
-class FilesystemLoader(object):
-    def __init__(self, load_item=load_item):
-        self._cachepath = os.path.join(STORE.view_root, '.itemcache')
-        self._load_item = load_item
-        self._load()        
-
-    def _load(self):
+    def load(self):
         n = time.time()
         cached = 'No'
         if self.has_cache():
@@ -320,6 +321,7 @@ class FilesystemLoader(object):
         else:
             self._load_raw()
             self._save_cache()
+        self._albums = AlbumData(self.store)        
         print >>sys.stderr, cached,' Load Time: ',time.time() - n
 
     def has_cache(self):
@@ -338,7 +340,7 @@ class FilesystemLoader(object):
     def _load_cache(self):
         f = open(self._cachepath, 'r')
         try:
-            self._prepare_data(cPickle.load(f))
+            self._prepare_data(pickle.load(f))
         finally:
             f.close()
 
@@ -347,17 +349,18 @@ class FilesystemLoader(object):
         self._itemlist = data._itemlist
         self._itemmap = {}
         self._years = data._years
-        self._albums = data._albums
         for item in data._itemlist:
             assert item != None
             self._itemmap[item.path] = item
+            for alias in item.aliases:
+                self._itemmap[alias] = item
         self.tags = data.tags
         self._allimages = data._allimages
 
     def _save_cache(self):
         s = StringIO()
-        cPickle.dump(self._data, s,
-                     cPickle.HIGHEST_PROTOCOL)
+        pickle.dump(self._data, s,
+                     pickle.HIGHEST_PROTOCOL)
         f = open(self._cachepath, 'w')
         f.write(s.getvalue())
         f.close()
@@ -375,8 +378,7 @@ class FilesystemLoader(object):
         data._allimages = 0L
         load_item = self._load_item
         data._itemlist.append(load_item('/'))
-        data._albums = AlbumData()
-        for item in loaderwalk(load_item):
+        for item in self._parent.walk():
             data._itemlist.append(item)
             if not item.iscontainer:
                 itemid = len(data._itemlist) - 1
@@ -466,7 +468,11 @@ class FilesystemLoader(object):
             count = len(imgs)
         return [img[1] for img in imgs[:count]]
 
+    def dynacontainer(self, path, title, **kw):
+        return DynamicContainerItem(self.store, path, title, **kw)
+
     def load_item(self, path):
+        store = self.store
         if path.startswith('/albums'):
             n = path[8:]
             data = self._albums.get(n)
@@ -481,7 +487,7 @@ class FilesystemLoader(object):
                 order = '-publishtime'
             else:
                 order = ''
-            return DynamicContainerItem(path,
+            return self.dynacontainer(path,
                                         data.title,
                                         highlightpath=data.highlightpath,
                                         contentsfunc=cfunc,
@@ -498,7 +504,7 @@ class FilesystemLoader(object):
             if count > 50:
                 count = 50
             
-            return DynamicContainerItem(path,
+            return self.dynacontainer(path,
                                         'Recent photos',
                                         contentsfunc=lambda : self.recent_images(count),
                                         order='-publishtime')
@@ -513,7 +519,7 @@ class FilesystemLoader(object):
                         count = 0                    
                 else:
                     count = -1
-                d = DynamicContainerItem(path,
+                d = self.dynacontainer(path,
                                          kwquery,
                                          count=count,
                                          contentsfunc=lambda : self.query(tags),
@@ -522,10 +528,10 @@ class FilesystemLoader(object):
                 mosttags = self.most_tags()
                 mosttags.sort()
                 contents = ['/keyword/' + tag for tag, o in mosttags]
-                d = DynamicContainerItem(path,
+                d = self.dynacontainer(path,
                                          'Keywords',
                                          contents=contents,
-                                         viewpath=STORE.find_template('keywords.html'),
+                                         viewpath=store.find_template('keywords.html'),
                                          order = '')
             return d
         elif path.startswith('/bydate'):
@@ -535,11 +541,11 @@ class FilesystemLoader(object):
                 count = reduce(lambda x,y:x+y, [year.count for year in self.image_years()])
                 contents.sort()
                 contents.reverse()
-                return DynamicContainerItem(path,
+                return self.dynacontainer(path,
                                             'Browse by date',
                                             contents=contents,
                                             count=count,
-                                            viewpath=STORE.find_template('bydate.html'),
+                                            viewpath=store.find_template('bydate.html'),
                                             order='')
                                             
             elif len(ym) == 2:
@@ -551,11 +557,11 @@ class FilesystemLoader(object):
                 contents = ['/bydate/%04d/%02d' % (year, idx+1) for idx, count in enumerate(yr.months) if count > 0]
                 contents.sort()
                 contents.reverse()
-                return DynamicContainerItem(path,
+                return self.dynacontainer(path,
                                             str(year),
                                             contents=contents,
                                             count=yr.count,
-                                            viewpath=STORE.find_template('bydate.html'),
+                                            viewpath=store.find_template('bydate.html'),
                                             order='')
             elif len(ym) == 3:
                 try:
@@ -566,7 +572,7 @@ class FilesystemLoader(object):
                     return None
                 except KeyError:
                     return None
-                return DynamicContainerItem(path,
+                return self.dynacontainer(path,
                                             '%s %d' % (MONTHS[month-1],
                                                        year),
                                             count=yearo.months[month-1],
@@ -593,17 +599,18 @@ class DynamicAlbum(object):
         self.highlightpath = highlightpath
 
 class AlbumData(object):
-    def __init__(self):
+    def __init__(self, store):
         self._sets = {}
-        self._load()        
+        self.store = store
+        self._load()
 
     def _load(self):
-        if os.path.exists(os.path.join(STORE.root, '_singleshot.py')):
+        path = os.path.join(self.store.root, '_singleshot.py')
+        if os.path.exists(path):
             gl = {'ALBUMS' : self,
                   'Album' : DynamicAlbum}
             lc = {}
-            execfile(os.path.join(STORE.root, '_singleshot.py'),
-                     gl, lc)
+            execfile(path, gl, lc)
         
 
     def add(self, set):

@@ -1,24 +1,23 @@
-from ssconfig import CONFIG, STORE, read_config
-from jpeg import JpegHeader, parse_exif_date, load_exif, calculate_box
-from storage import FilesystemEntity
-from properties import ViewMeta, AutoPropertyMeta
-import imageprocessor
+from singleshot.properties import AutoPropertyMeta
 import time
 import os
 
 MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 class Item(object):
+    __slots__ = ('iscontainer', 'path', 'title', 'caption', 'publish_time')
 #    __metaclass__ = AutoPropertyMeta
     
     "Basic properties of an item"
     iscontainer = False
     path = ''           # the logical path to this item
+    aliases = ()        # other paths to this item
     title = ''
     caption = ''
     publish_time = None    # the time an image is considered 'published'
 
 class Location(object):
+    __slots__ = ('name', 'city', 'state', 'postal', 'latitude', 'longitude')
 #    __metaclass__ = ModelMeta    
     "Represents a location"
 
@@ -30,8 +29,9 @@ class Location(object):
     longitude = None
 
 class ContainerItem(Item):
-    __metaclass__ = AutoPropertyMeta
+#    __metaclass__ = AutoPropertyMeta
     "Meta information about a Container"
+
     order = 'dir,-publishtime'
     highlightpath = ''  # the highlight image path
 
@@ -42,6 +42,8 @@ class ContainerItem(Item):
     def _get_count(self):
         return len(contents)
 
+    count = property(_get_count)
+
     contents = ()
 
 class DynamicContainerItem(ContainerItem):
@@ -50,7 +52,7 @@ class DynamicContainerItem(ContainerItem):
     __contents = ()
     __contentsfunc = None
 
-    def __init__(self, path, title, count=-1, contents=None, contentsfunc=None, pt=None, viewpath='', imageviewpath='', order=None, caption='', highlightpath=''):
+    def __init__(self, store, path, title, count=-1, contents=None, contentsfunc=None, pt=None, viewpath='', imageviewpath='', order=None, caption='', highlightpath=''):
         self.path = path
         self.title = title
         if highlightpath:
@@ -70,11 +72,11 @@ class DynamicContainerItem(ContainerItem):
         if viewpath:
             self.viewpath = viewpath
         else:
-            self.viewpath = STORE.find_template('album.html')
+            self.viewpath = store.find_template('album.html')
         if imageviewpath:
             self.imageviewpath = imageviewpath
         else:
-            self.imageviewpath = STORE.find_template('view.html')
+            self.imageviewpath = store.find_template('view.html')
 
     def _get_count(self):
         if self.__count > -1:

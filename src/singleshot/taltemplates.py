@@ -1,5 +1,4 @@
 from __future__ import nested_scopes
-from properties import *
 import imp
 
 import sys
@@ -7,7 +6,8 @@ import sys
 from simpletal import simpleTAL, simpleTALES
 from simpletal.simpleTALES import PathFunctionVariable, CachedFuncResult
 from simpletal.simpleTALUtils import TemplateCache, FastStringOutput
-from ssconfig import STORE
+
+from singleshot.properties import *
 
 TEMPLATE_CACHE = TemplateCache()
 
@@ -20,14 +20,9 @@ class ViewableObject(object):
         if not path:
             return None
         return TEMPLATE_CACHE.getTemplate(path)
-#        f = open(path, 'rt')
-#        try:
-#            return simpleTAL.compileXMLTemplate(f)
-#        finally:
-#            f.close()
 
     def find_template(self, name):
-        return STORE.find_template(name + '.html')        
+        return self.store.find_template(name + '.html')        
 
     def find_view_template(self):        
         return self.find_template(self.viewname)
@@ -58,17 +53,16 @@ class ViewableObject(object):
 
     content_type = 'text/html'
 
-    def cgi_view(self, output=None, **kw):
-        if not output:
-            output = sys.stdout
+    def request_view(self, request, **kw):
         f = FastStringOutput()
         self.view(f, **kw)
         s = f.getvalue()
-        if self.http_status:
-            output.write("Status: %s\n" % self.http_status)
-        output.write('Content-type: %s\nContent-length: %d\n\n' % (self.content_type,
-                                                                   len(s)))
-        output.write(s)        
+#        if self.http_status:
+#            output.write("Status: %s\n" % self.http_status)
+        request.content_type = self.content_type
+        request.content_length = len(s)
+        request.send_headers()
+        request.write(s)
 
         
 

@@ -1,16 +1,12 @@
-from ssconfig import CONFIG, STORE, read_config
-from jpeg import JpegHeader, parse_exif_date, load_exif, calculate_box
-from storage import FilesystemEntity
-from properties import ViewMeta
-import fsloader
-import imageprocessor
+from singleshot.storage import FilesystemEntity
+from singleshot.properties import ViewMeta
+
 import time
 import os
-from model import Item, ImageItem, ContainerItem
-from taltemplates import ViewableObject, ViewableContainerObject, PathFunctionVariable
+from singleshot.model import Item, ImageItem, ContainerItem
+from singleshot.taltemplates import ViewableObject, ViewableContainerObject, PathFunctionVariable
 
-IMAGESIZER = imageprocessor.select_processor()
-
+from singleshot.fsloader import ImageSizes
 
 class Crumb(object):
     def __init__(self, link=None, item=None):
@@ -19,7 +15,9 @@ class Crumb(object):
         self.title = item.title
         
 class Breadcrumbs(object):
-    def __init__(self, fsroot, urlprefix, item, context):        
+    def __init__(self, item, context=None):
+        if not context:
+            context = self
         self.crumbs = [Crumb(item=item, link=item.href)]
         for item in context.parents:
             self.crumbs.append(Crumb(item=item, link=item.href))
@@ -42,8 +40,10 @@ class ItemView(object):
     parent = None
     ctxparent = False
 
-    def __init__(self, o, parent=None, load_view=None):
+    def __init__(self, o, store, parent=None, load_view=None):
         self._of = o
+        self.store = store
+        self.config = store.config
         self._load_view = load_view
         calcparent = self.path[:self.path.rindex('/')]
         if not calcparent:
@@ -62,7 +62,7 @@ class ItemView(object):
             p = p.parent
         
     def _get_href(self):
-        url = CONFIG.url_prefix + self.path[1:]
+        url = self.config.url_prefix + self.path[1:]
         if self.ctxparent:
             url += '?in=%s' % (self.parent.path,)
         return url
@@ -91,20 +91,16 @@ class ItemView(object):
         context.addGlobal("title", self.title)
         context.addGlobal("data", PathFunctionVariable(pathloader))
         context.addGlobal("lastimage", PathFunctionVariable(lambda x:self._load_view('/recent/1').items[0]))
-        context.addGlobal("ssuri",
-                          PathFunctionVariable(lambda x:CONFIG.ssuri + '/' + x))
         context.addGlobal("ssroot",
-                          PathFunctionVariable(lambda x:CONFIG.url_prefix +  x))
+                          PathFunctionVariable(lambda x:self.config.url_prefix +  x))
         def make_crumbs():
-            image_root = STORE.image_root
-            urlprefix = CONFIG.url_prefix
-            return Breadcrumbs(image_root, urlprefix, self, self)
+            return Breadcrumbs(self)
         context.addGlobal("crumbs", make_crumbs())        
         return context
 
     def view(self, output, viewname=None, contextdata=None):
         if viewname:
-            view = self.load_template(STORE.find_template(viewname + '.html'))
+            view = self.load_template(self.store.find_template(viewname + '.html'))
         else:
             view = self.load_template(self.viewpath)
         context = self.create_context()
@@ -119,7 +115,7 @@ class ImageView(ItemView, ViewableObject):
     __of__ = ImageItem
 
     def _get_href(self):
-        url = CONFIG.url_prefix + self.path[1:] + '.html'
+        url = self.config.url_prefix + self.path[1:] + '.html'
         if self.ctxparent:
             url += '?in=%s' % (self.parent.path,)        
         return url
@@ -131,7 +127,7 @@ class ImageView(ItemView, ViewableObject):
         return self.parent.imageviewpath
 
     def _load_sizes(self):
-        return fsloader.ImageSizes(self)
+        return ImageSizes(self)
 
 
 class OrderedItems(list):
@@ -202,20 +198,21 @@ class ContainerView(ItemView, ViewableContainerObject):
 import sys
 
 class ViewLoader(object):
-    def __init__(self, loaditem):
+    def __init__(self, store):
         self.__cache = {}
-        self.__load_item = loaditem
+        self.__store = store
+        self.__load_item = store.loader.load_item
 
     def _load_view(self, path, parent=None):
         item = self.__load_item(path)
+        cls = ItemView
         if not item:
             return None
         elif isinstance(item, ContainerItem):
-            return ContainerView(item, parent=parent, load_view=self.load_view)
+            cls = ContainerView
         elif isinstance(item, ImageItem):
-            return ImageView(item, parent=parent, load_view=self.load_view)
-        else:
-            return ItemView(item, parent=parent, load_view=self.load_view)
+            cls = ImageView
+        return cls(item, self.__store, parent=parent, load_view=self.load_view)
 
     def load_view(self, path, parent=None):
         if not path:
