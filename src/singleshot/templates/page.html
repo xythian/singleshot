@@ -1,0 +1,40 @@
+<macros>
+<html xmlns:tal="http://xml.zope.org/namespaces/tal"  
+      xmlns:metal="http://xml.zope.org/namespaces/metal"
+      metal:define-macro="page">
+  <head>
+    <title>Ken's Photos: <span tal:content="title" tal:omit-tag="">Page Title</span></title>
+    <link rel="stylesheet" type="text/css"  title="site style" href="common.css" tal:attributes="href ssroot/static/site.css" />
+    <link rel="alternate" type="application/rss+xml" title="RSS 2.0 recent photos" tal:attributes="href ssroot/rss/recent/" />
+   </head>
+<body>
+<div id="page">
+<div id="header"><a tal:attributes="href ssroot/"  class="headerimg" ><img tal:attributes="src ssroot/static/photos-title.jpg"
+height="50" width="400" border="0"></a> 
+<ul class="navlinks">
+<li><a tal:attributes="href ssroot/">Home</a></li>
+<li><a tal:attributes="href ssroot/albums/">albums</a></li>
+<li><a tal:attributes="href ssroot/keyword/">keywords</a></li>
+<li><a tal:attributes="href ssroot/static/about/">about</a></li>
+<li><a tal:attributes="href ssroot/static/prints/">prints</a></li>
+<li><a tal:attributes="href ssroot/static/contact/">contact</a></li>
+</ul>
+</div>
+
+
+<div class="itemcrumbs" tal:condition="crumbs">
+<div tal:condition="crumbs/parents" class="crumbs">
+<span tal:repeat="crumb crumbs/parents"><a href="#"
+tal:attributes="href crumb/link" tal:content="crumb/title">Crumb</a> &gt; </span>
+<span tal:content="item/title">Item</span>
+</div>
+</div>
+
+
+<div id="content"><div metal:define-slot="content">Sample content</div></div>
+<div id="footer">
+<div class="copyright">All images and content &copy; 1989-2005 Ken Fox
+unless otherwise noted.  All rights reserved.  See <a tal:attributes="href ssroot/static/about/">about</a> for license details.</div>
+</div></div>
+</body></html>
+</macros>

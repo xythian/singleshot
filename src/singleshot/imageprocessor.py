@@ -12,9 +12,12 @@ from singleshot.jpeg import JpegHeader, parse_exif_date
 from singleshot.storage import FilesystemEntity
 from singleshot.properties import *
 
+HAVE_PIL = False
 try:
     import Image
     import ExifTags
+    import ImageEnhance    
+    HAVE_PIL = True
 except ImportError:
     # no pil, I guess
     pass
@@ -80,9 +83,9 @@ class ImageMagickProcessor(ImageProcessor):
     def execute(self, source=None,
                 dest=None,
                 size=None,
-                sharpen="0.9x80",
-                flt=None):
+                sharpen="0.9x80"):
         cmd = 'convert'
+        size = size.size
         sizespec = '%sx%s' % (size, size)
         args = [cmd, '-size', sizespec, '-scale', sizespec, '-unsharp', sharpen, source, dest]
         
@@ -113,17 +116,21 @@ class PILProcessor(ImageProcessor):
                 pass
         return result
     
-    def execute(self, source=None, dest=None, size=None,sharpen=None, flt=None):
-        input = Image.open(source)
-        if flt:
-            input.thumbnail((size, size), Image.ANTIALIAS)
-            flt = self.load_filter(flt)
-            flt(size, input)
+    def execute(self, source=None, dest=None, size=None):
+        height = size.height
+        width = size.width    
+        image = Image.open(source)
+        size = size.size
+        if size**2 < 40000:
+            image.thumbnail((size, size), Image.ANTIALIAS)
         else:
-            input.thumbnail((size, size), Image.ANTIALIAS)
-        input.save(dest, "JPEG")
+            image = image.resize((width, height), Image.ANTIALIAS)
+        enhancer = ImageEnhance.Sharpness(image)
+        image = enhancer.enhance(1.6)
+        image.save(dest, "JPEG")
 
 def create(store):
+#    return ImageMagickProcessor(store)
     try:
         import Image
         import ExifTags

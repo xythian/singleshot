@@ -16,6 +16,8 @@ class Item(object):
     caption = ''
     publish_time = None    # the time an image is considered 'published'
 
+    modify_time = None    # the last time this item was modified
+
 class Location(object):
     __slots__ = ('name', 'city', 'state', 'postal', 'latitude', 'longitude')
 #    __metaclass__ = ModelMeta    

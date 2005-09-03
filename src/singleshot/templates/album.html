@@ -1,0 +1,16 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns:tal="http://xml.zope.org/namespaces/tal"  
+      xmlns:metal="http://xml.zope.org/namespaces/metal"
+      metal:use-macro="macros/macros/page">
+
+<div metal:fill-slot="content">
+<h2 tal:content="item/title">Album Title</h2>
+<table class="thumbnails" align="center">
+  <tr tal:repeat="row itemsbyrows/3">
+     <td valign="top" tal:repeat="item row" tal:attributes="class item/cssclassname"><a tal:condition="item" href="#"
+	  tal:attributes="href item/href;title item/title"><img 
+           tal:define="t item/image/sizes/thumb" tal:attributes="src t/href;height t/height;width t/width" class="thumbnail" border="0" /></a><br /><a tal:content="item/title" tal:attributes="href item/href">Item title</a></td></tr></table>
+       
+</div>
+
+</html>

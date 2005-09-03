@@ -26,10 +26,9 @@ MODPYTHON_CLAUSE = """
 AddHandler python-program .py
 PythonPath @pathparts@+sys.path
 PythonOption root @root@
-PythonOption template_root @templateroot@
+PythonOption template_root @templatedir@
 PythonOption baseurl @baseurl@
 PythonHandler singleshot.ssmodpython
-
 """
 
 HTACCESS_TEMPLATE = """RewriteEngine on
@@ -57,7 +56,7 @@ RewriteRule ^view/.* - [L]
 # Critical that this rule [S]kip any other match-all-images rule
 RewriteRule ^(.*)-([1-9][0-9]+)(\.jpg)$ view/$1-$2$3  [NC,S=1]
 
-# Requesting the whole image only gets you the 'full' pixel size, not the full
+# Requesting the whole image only gets you the '1200' pixel size, not the full
 # file (comment this out if you want to allow access to the large file)
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^(.*)(\.jpg)$ view/resize/$1-1200$2 [NC]
@@ -116,7 +115,7 @@ def main():
                       action="append",
                       type="string",
                       dest="path",
-                      help="Prepend path to sys.path for CGI")
+                      help="Include directory on the path")
     parser.add_option('--templatedir',
                       action="store",
                       type="string",
@@ -127,6 +126,10 @@ def main():
                       dest="cginame",
                       default="singleshot.py",
                       help="Sets the name of the singleshot CGI script")
+    parser.add_option('--modpython',
+                      action='store_true',
+                      default=False,
+                      help="Includes the mod_python directives in .htaccess")
     parser.add_option("--force",
                       action="store_true",
                       default=False,
@@ -141,25 +144,19 @@ def main():
     cgipath = options.cginame    
     cginame = options.cginame
 
-    pathhack = options.path
+    pathparts = options.path
 
-    if pathhack:
-        pathhack.reverse()
-    
+    if pathparts:
+        pathparts.reverse()
+    else:
+        pathparts = ()
 
     try:
         pp = os.environ['PYTHONPATH']
         pp = pp.split(os.path.sep)
-        pathhack += pp
+        pathparts += pp
     except KeyError:
         pass
-            
-
-    if pathhack:
-        pathhack = [os.path.abspath(path) for path in pathhack]
-        pathhack = "import sys\n" + "\n".join(["sys.path.insert(0, %s)" % repr(path) for path in pathhack])
-    else:
-        pathhack = ''
 
     if options.url[0] != '/':
         parser.error('URL should be absolute from the domain root (start with /)')
@@ -170,24 +167,56 @@ def main():
     mainargs = ['baseurl=%s' % repr(options.url),
                 'root=%s' % repr(os.path.abspath(options.root))]
 
+    if pathparts:
+        pathparts = [os.path.abspath(path) for path in pathparts]
+        pathhack = "import sys\n" + "\n".join(["sys.path.insert(0, %s)" % repr(path) for path in pathparts])
+    else:
+        pathhack = ''
+
+
     if options.templatedir:
-        d = os.path.abspath(options.templatedir)
-        mainargs.append('template_root=%s' % repr(d))
-    
+        tmplroot = os.path.abspath(options.templatedir)
+        mainargs.append('template_root=%s' % repr(tmplroot))
+    else:
+        tmplroot = os.path.abspath(os.path.join(options.root, 'templates'))
+        if not os.path.exists(tmplroot):
+            os.makedirs(tmplroot)
+        for path in pathparts:
+            if path not in sys.path:                
+                sys.path.insert(0, path)
+                
+        try:
+            from singleshot import templates
+            for name, data in templates.all_templates():
+                path = os.path.join(tmplroot, name)
+                if not os.path.exists(path):
+                    print 'Writing',path,'...'
+                    open(path, 'w').write(data)
+        except ImportError:
+            print >>sys.stderr, 'Unable to find templates.  Ensure singleshot is on the path?'
+        
+        
     subs = {'python' : sys.executable,
             'rewritebase' : options.url[:-1],
             'baseurl' : options.url,
+            'root' : os.path.abspath(options.root),
+            'templatedir' : tmplroot,
             'cgi' : cgipath,
             'cginame' : cginame,
+            'pathparts' : repr(pathparts).replace(' ',''),
             'pathhack' : pathhack,
             'mainargs' : ','.join(mainargs)}
 
-#    ssdir = os.path.join(options.root, 'singleshot')
+    ssdir = os.path.join(options.root, 'singleshot')
     
-#    if not os.path.exists(ssdir):
-#        os.makedirs(ssdir)
+    if not os.path.exists(ssdir):
+        os.makedirs(ssdir)
 
-    write_template(subs, "### begin singleshot\n" + HTACCESS_TEMPLATE + "### end singleshot", options.force,
+    httmpl = HTACCESS_TEMPLATE
+    if options.modpython:
+        httmpl = MODPYTHON_CLAUSE + httmpl
+    httmpl = "### begin singleshot\n" + httmpl + "### end singleshot"
+    write_template(subs, httmpl, options.force,
                    os.path.join(options.root, '.htaccess'))
 
     cgi = os.path.join(options.root, cgipath)
@@ -195,14 +224,12 @@ def main():
                    cgi)
 
 
-#    write_template(subs, CGI_DIR_HTACCESS, options.force,
-#                   os.path.join(ssdir, '.htaccess'))
-
     os.chmod(cgi, S_IREAD|S_IWRITE|S_IEXEC|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
 
     viewpath = os.path.join(options.root, 'view')
     if not os.path.exists(viewpath):
         os.makedirs(viewpath)
+
     
 if __name__ == '__main__':
     main()

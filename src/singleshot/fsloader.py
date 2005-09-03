@@ -3,14 +3,14 @@ from singleshot.ssconfig import read_config
 from singleshot.jpeg import JpegHeader, parse_exif_date, calculate_box
 from singleshot.model import ContainerItem, ImageItem, MONTHS, DynamicContainerItem
 from singleshot import imageprocessor, pages
-
+import mmap
 
 import time
 import os
 from datetime import datetime
 from cStringIO import StringIO
-#import cPickle as pickle
-import pickle
+import cPickle as pickle
+#import pickle
 import sys
 
 
@@ -35,8 +35,11 @@ class ImageFSLoader(FSLoader):
         img = ImageItem()
         img.path = path
         img.aliases = (path + ext,)
-        img.rawimagepath = fspath        
+        img.rawimagepath = fspath
+        img.filename = os.path.basename(fspath)[:-len(ext)]
         processor.load_metadata(img, ext, fspath)
+        st = os.stat(fspath)
+        img.modify_time = st.st_mtime
         if not img.publish_time:
             pth = os.path.dirname(img.rawimagepath)
             p = month_dir(pth)
@@ -44,8 +47,8 @@ class ImageFSLoader(FSLoader):
                 year, month, t = p
                 img.publish_time = t                            
             else:
-                img.publish_time = os.stat(img.rawimagepath).st_mtime
-        if not img.title:
+                img.publish_time = st.st_mtime
+        if not img.title.strip():
             img.title = img.filename
         dirpath, img.filename = os.path.split(fspath)
         rootzor = dirpath[len(self.store.root)+1:]
@@ -95,6 +98,8 @@ class DirectoryFSLoader(FSLoader):
         d.viewpath = self.override_template(fspath, 'album.html')
         d.imageviewpath = self.override_template(fspath, 'view.html')
         d.title = config.get('album', 'title')
+        d.modify_time = os.stat(fspath).st_mtime        
+        d.publish_time = d.modify_time
         if not d.title:
             mdir = month_dir(fspath)
             if mdir:
@@ -102,8 +107,6 @@ class DirectoryFSLoader(FSLoader):
                 d.title = '%s %d' % (MONTHS[month-1], year)
             else:
                 d.title = os.path.basename(fspath)
-        if not d.publish_time:
-            d.publish_time = os.stat(fspath).st_mtime
         d.path = path
         contents = []
         l = len(self.store.root)
@@ -149,15 +152,18 @@ class MemoizeLoader(ItemLoader):
             self._cache[path] = v
             return v
 
-class FilesystemLoader(MemoizeLoader):
+class FilesystemLoader(ItemLoader):
     def __init__(self, store):
-        super(FilesystemLoader, self).__init__()
         self.store = store
         self.config = store.config
         self.loaders = [ImageFSLoader(store),
                         DirectoryFSLoader(store, self.load_item)]
-        
-    def _load_item(self, path):
+        self._cache = {}
+
+    def load_cached_item(self, path):
+        return None
+
+    def load_item(self, path):
         if path.endswith('/') and len(path) > 1:
             path = path[:-1]
         if path.startswith(self.store.root):
@@ -166,19 +172,35 @@ class FilesystemLoader(MemoizeLoader):
         elif not path:
             path = '/'            
         fspath = os.path.join(self.store.root, path[1:])
-#        try:
-        def x():
-            st = os.stat(fspath)
-            bn = os.path.split(fspath)[1]
-            name, ext = os.path.splitext(bn)
-            if self.config.ignore_path(fspath):
-                return None
-            for loader in self.loaders:
-                if loader.handles(path, ext, fspath):
-                    return loader.load_path(path, ext, fspath)
-#        except OSError, msg:
-#            pass
-        return x()
+        st = os.stat(fspath)
+        bn = os.path.split(fspath)[1]
+        name, ext = os.path.splitext(bn)
+        if self.config.ignore_path(fspath):
+            return None
+        try:
+            item = self._cache[path]
+        except KeyError:            
+            item = self.load_cached_item(path)
+
+        if not item:
+            mtime = 0
+        else:
+            mtime = item.modify_time
+
+        if not mtime or mtime > st.st_mtime:
+            item = self._load_path(path, ext, fspath)
+            self._cache[path] = item
+            if item:
+                for alias in item.aliases:
+                    self._cache[alias] = item
+
+        return item
+    
+    
+    def _load_path(self, path, ext, fspath):
+        for loader in self.loaders:
+            if loader.handles(path, ext, fspath):
+                return loader.load_path(path, ext, fspath)
         return None
 
 class ImageSize(FilesystemEntity):
@@ -228,7 +250,7 @@ class ImageSize(FilesystemEntity):
             os.makedirs(self.image.viewfilepath)
         self.store.processor.execute(source=self.image.rawimagepath,
                                      dest=self.path,
-                                     size=self.size)
+                                     size=self)
     def expire(self):
         if self.exists:    
             os.remove(self.path)
@@ -304,28 +326,14 @@ class ImageYear(object):
 class ItemData(object):
     pass
 
-
-
-class SingleshotLoader(ItemLoader):
-    def __init__(self, store, parent=None):
+class PickleCacheStore(object):
+    def __init__(self, store, load_itemdata=None):
         self._cachepath = os.path.join(store.view_root, '.itemcache')
-        self._parent = parent
-        self._load_item = parent.load_item
-        self.store = store
+        self._data = False
+        self._load_itemdata = load_itemdata
+        self._itemmap = {}
 
-    def load(self):
-        n = time.time()
-        cached = 'No'
-        if self.has_cache():
-            cached = 'Yes'
-            self._load_cache()
-        else:
-            self._load_raw()
-            self._save_cache()
-        self._albums = AlbumData(self.store)        
-        print >>sys.stderr, cached,' Load Time: ',time.time() - n
-
-    def has_cache(self):
+    def uptodate(self):
         path = self._cachepath
         now = time.time()
         try:
@@ -336,14 +344,30 @@ class SingleshotLoader(ItemLoader):
                 return True
         except:
             pass
-        return False
-            
-    def _load_cache(self):
+        return False        
+
+    def _store(self, itemdata):
+        s = StringIO()
+        pickle.dump(itemdata, s,
+                     pickle.HIGHEST_PROTOCOL)
+        f = open(self._cachepath, 'w')
+        f.write(s.getvalue())
+        f.close()
+
+    def _read(self):
         f = open(self._cachepath, 'r')
         try:
             self._prepare_data(pickle.load(f))
         finally:
             f.close()
+
+    def ready(self):
+        if not self.uptodate():
+            itemdata = self._load_itemdata()
+            self._store(itemdata)
+            self._prepare_data(itemdata)
+        elif not self._data:
+            self._read()
 
     def _prepare_data(self, data):
         self._data = data
@@ -358,65 +382,20 @@ class SingleshotLoader(ItemLoader):
         self.tags = data.tags
         self._allimages = data._allimages
 
-    def _save_cache(self):
-        s = StringIO()
-        pickle.dump(self._data, s,
-                     pickle.HIGHEST_PROTOCOL)
-        f = open(self._cachepath, 'w')
-        f.write(s.getvalue())
-        f.close()
-
-    def prepare_tag(self, tag):
-        tag = tag.lower()
-        tag = tag.replace(' ', '')
-        return tag
-    
-    def _load_raw(self):
-        data = ItemData()
-        data.tags = {}
-        data._itemlist = []
-        data._years = {}
-        data._allimages = 0L
-        load_item = self._load_item
-        data._itemlist.append(load_item('/'))
-        for item in self._parent.walk():
-            data._itemlist.append(item)
-            if not item.iscontainer:
-                itemid = len(data._itemlist) - 1
-                path = item.path
-                data._allimages |= 1L << itemid
-                def record_keywords():
-                    def record_keyword(tag):
-                        tag = self.prepare_tag(tag)
-                        try:
-                            data.tags[tag].add(itemid)
-                        except KeyError:
-                            t = Tag(tag)
-                            t.add(itemid)
-                            data.tags[tag] = t
-                    for tag in item.keywords:
-                        record_keyword(tag)
-                    pt = item.publish_time
-                    d = datetime.fromtimestamp(pt)
-                    try:
-                        yearrecord = data._years[d.year]
-                    except KeyError:
-                        yearrecord = ImageYear(d.year)
-                        data._years[d.year] = yearrecord
-                    yearrecord.add(d.month)
-                    record_keyword('publish:%04d-%02d' % (d.year, d.month))
-                    record_keyword('publish:%04d' % (d.year))
-                    record_keyword('publish:%04d-%02d-%02d' % (d.year, d.month, d.day))
-                record_keywords()        
-        self._prepare_data(data)
-
     def all_tags(self):
+        self.ready()
         return self.tags.items()
 
-    def most_tags(self):
-        return [(tag.name, tag) for tag in self.tags.values() if tag.count > 3 and not tag.name.startswith('publish:')]
+
+    def load_item(self, path):
+        self.ready()
+        try:
+            return self._itemmap[path]
+        except KeyError:
+            return None
 
     def _query(self, tags):
+        self.ready()        
         imgmap = self._allimages
         excmap = 0L
         for tag in tags:
@@ -436,38 +415,97 @@ class SingleshotLoader(ItemLoader):
             imgmap = 0L
         return imgmap, excmap
 
-    def query(self, tags):
-        n = time.time()
+    def query_tag(self, tags):
         imgmap, excmap = self._query(tags)
         result = []
         for idx in xrange(len(self._itemlist)):
             imgmask = 1L << idx
             if imgmap & imgmask and not excmap & imgmask:
                 result.append(self._itemlist[idx].path)
-        print >>sys.stderr, 'Query time: %s %.2fms' % (','.join(tags), (time.time() - n) * 1000.), len(result)
         return result
 
-    def image_years(self):
-        return self._years.values()
 
-    def image_year(self, year):
-        return self._years[year]
+    def most_tags(self):
+        self.ready()        
+        return [(tag.name, tag) for tag in self.tags.values() if tag.count > 3 and not tag.name.startswith('publish:')]
 
-    def early_images(self, count=10):
-        imgs = [(item.publish_time, item.path) for item in self._itemlist if isinstance(item, ImageItem)]
-        imgs.sort()
-        if count > len(imgs):
-            count = len(imgs)
-        return [img[1] for img in imgs[:count]]
-        
-
-    def recent_images(self, count=10):        
+    def recent_images(self, count=10):
+        self.ready()        
         imgs = [(item.publish_time, item.path) for item in self._itemlist if isinstance(item, ImageItem)]
         imgs.sort()
         imgs.reverse()
         if count > len(imgs):
             count = len(imgs)
         return [img[1] for img in imgs[:count]]
+
+    def image_years(self):
+        self.ready()        
+        return self._years.values()
+
+    def image_year(self, year):
+        self.ready()        
+        return self._years[year]
+
+    def prepare_tag(self, tag):
+        tag = tag.lower()
+        tag = tag.replace(' ', '')
+        return tag
+
+CacheStore = PickleCacheStore
+
+class SingleshotLoader(ItemLoader):
+    def __init__(self, store, parent=None):
+        self._parent = parent
+        self._load_item = parent.load_item
+        self.store = store
+        self._data = CacheStore(self.store,
+                                load_itemdata=self._load_raw)
+        self.all_tags = self._data.all_tags
+        self.most_tags = self._data.most_tags
+        self.query = self._data.query_tag
+        self.recent_images = self._data.recent_images
+        self.image_year = self._data.image_year
+        self.image_years = self._data.image_years
+        self._albums = AlbumData(self.store)
+
+    def _load_raw(self):
+        data = ItemData()
+        data.tags = {}
+        data._itemlist = []
+        data._years = {}
+        data._allimages = 0L
+        load_item = self._load_item
+        data._itemlist.append(load_item('/'))
+        for item in self._parent.walk():
+            data._itemlist.append(item)
+            if not item.iscontainer:
+                itemid = len(data._itemlist) - 1
+                path = item.path
+                data._allimages |= 1L << itemid
+                def record_keywords():
+                    def record_keyword(tag):
+                        tag = self._data.prepare_tag(tag)
+                        try:
+                            data.tags[tag].add(itemid)
+                        except KeyError:
+                            t = Tag(tag)
+                            t.add(itemid)
+                            data.tags[tag] = t
+                    for tag in item.keywords:
+                        record_keyword(tag)
+                    pt = item.publish_time
+                    d = datetime.fromtimestamp(pt)
+                    try:
+                        yearrecord = data._years[d.year]
+                    except KeyError:
+                        yearrecord = ImageYear(d.year)
+                        data._years[d.year] = yearrecord
+                    yearrecord.add(d.month)
+                    record_keyword('publish:%04d-%02d' % (d.year, d.month))
+                    record_keyword('publish:%04d' % (d.year))
+                    record_keyword('publish:%04d-%02d-%02d' % (d.year, d.month, d.day))
+                record_keywords()
+        return data
 
     def dynacontainer(self, path, title, **kw):
         return DynamicContainerItem(self.store, path, title, **kw)
@@ -513,16 +551,8 @@ class SingleshotLoader(ItemLoader):
             if len(path) > 9:
                 kwquery = path[9:]
                 tags = kwquery.split('/')
-                if len(tags) == 1:
-                    try:
-                        count = self.tags[tags[0]].count
-                    except KeyError:
-                        count = 0                    
-                else:
-                    count = -1
                 d = self.dynacontainer(path,
                                          kwquery,
-                                         count=count,
                                          contentsfunc=lambda : self.query(tags),
                                          order='-publishtime')
             else:
@@ -581,10 +611,7 @@ class SingleshotLoader(ItemLoader):
             else:
                 return None
         else:
-            try:
-                return self._itemmap[path]
-            except KeyError:
-                return None
+            return self._data.load_item(path)
 
 class DynamicAlbum(object):
     def __init__(self, name, tag=None, title='', caption='', children=(), highlightpath=''):
@@ -603,7 +630,8 @@ class AlbumData(object):
     def __init__(self, store):
         self._sets = {}
         self.store = store
-        self._load()
+        self._loaded = False    
+        
 
     def _load(self):
         path = os.path.join(self.store.root, '_singleshot.py')
@@ -633,6 +661,9 @@ class AlbumData(object):
         fix_paths('', rootset)
 
     def get(self, path):
+        if not self._loaded:
+            self._loaded = True
+            self._load()
         return self._sets.get(path)
 
 

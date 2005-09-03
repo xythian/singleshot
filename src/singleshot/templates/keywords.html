@@ -1,0 +1,20 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns:tal="http://xml.zope.org/namespaces/tal"  
+      xmlns:metal="http://xml.zope.org/namespaces/metal"
+      metal:use-macro="macros/macros/page">
+
+<div metal:fill-slot="content">
+<h2 tal:content="item/title">Album Title</h2>
+<div style="margin: 0px auto; width: 60%">
+<table border="0">
+  <tr>
+     <td valign="top" tal:repeat="row itemsbycolumns/4">
+     <div style="text-align:left;" tal:repeat="item row" tal:attributes="class
+	  item/cssclassname"><a tal:attributes="href item/href;title item/name"
+  tal:content="item/name">tag</a></div></td></tr></table>
+ 
+  <span tal:repeat="tag item/items"> </span>
+</div>
+</div>
+
+</html>

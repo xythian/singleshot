@@ -84,8 +84,7 @@ class SingleshotConfig(ConfiguredEntity):
                     'feed' : { 'title' : '',
                               'description' : '',
                                'recentcount' : '10'
-                              },
-                    
+                              }
                }
     _default_imagesizes =  {  'mini' : 40,
                              'thumb' : 200,
@@ -103,7 +102,7 @@ class SingleshotConfig(ConfiguredEntity):
     config_filename = '_singleshot.cfg'
 
     def getInvokeEnvironment(self):
-        return {'PATH' : self.invokePath}
+        return {'PATH' : self.config.get('paths', 'invokePath')}
 
     def _load_config(self):
         cfg = super(SingleshotConfig, self)._load_config()
@@ -155,7 +154,6 @@ def create_store(root,
     store.loader = ssl
     store.load_view = ViewLoader(store).load_view
     store.processor = imageprocessor.create(store)
-    ssl.load()
     return store
 
 

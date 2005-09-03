@@ -17,7 +17,7 @@ class Crumb(object):
 class Breadcrumbs(object):
     def __init__(self, item, context=None):
         if not context:
-            context = self
+            context = item
         self.crumbs = [Crumb(item=item, link=item.href)]
         for item in context.parents:
             self.crumbs.append(Crumb(item=item, link=item.href))
