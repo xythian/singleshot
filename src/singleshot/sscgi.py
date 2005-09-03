@@ -45,6 +45,9 @@ class CGIRequest(sshandler.Request):
         self.write(text)
         raise sshandler.EndRequestException, 'Redirect'
 
+    def getfirst(self, name):
+        return self.form.getfirst(name)
+
     def set_status(self, code):
         self.__req.status = code
 

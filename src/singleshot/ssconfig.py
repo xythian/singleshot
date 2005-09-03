@@ -57,6 +57,7 @@ class Store(object):
             self.template_root = os.path.join(self.root, 'templates')
         self.image_root = root        
         self.view_root = os.path.join(root, 'view')
+        self.page_root = os.path.join(root, 'pages')
         self.static_root = os.path.join(root, 'static')
 
     def within_root(self, dirname):
@@ -130,6 +131,8 @@ class SingleshotConfig(ConfiguredEntity):
         elif path.startswith(self.store.view_root):
             return True
         elif path.startswith(self.store.template_root):
+            return True
+        elif path.startswith(self.store.page_root):
             return True
         elif path.startswith(self.store.static_root):
             return True

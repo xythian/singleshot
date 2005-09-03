@@ -8,17 +8,8 @@ import shutil
 
 
 def act(path, request):
-    form = request.form
-    size = form['size']
-    try:
-        flt = form['filter']
-    except:
-        flt = ''
-    try:
-        size = size.value
-        flt = flt.value
-    except:
-        pass
+    size = request.getfirst('size')
+    flt = None
     
     if size == 'full':
         # todo: this should just redirect, so the image gets cached

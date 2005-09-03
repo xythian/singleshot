@@ -1,5 +1,5 @@
 from singleshot.taltemplates import ViewableObject
-from singleshot import action_static
+from singleshot import pages
 
 from simpletal.simpleTALES import PathFunctionVariable
 
@@ -31,7 +31,7 @@ class PageNotFound(MessagePage):
 
 
 def return_404(path, request):
-    page = action_static.create(request, '404')
+    page = pages.create(request, '404')
     if not page:
         page = PageNotFound(request, path=request.uri)
     page.request_view(request)

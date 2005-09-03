@@ -22,11 +22,17 @@ from stat import *
 #    cgi
 #
 
-HTACCESS_TEMPLATE = """
+MODPYTHON_CLAUSE = """
+AddHandler python-program .py
+PythonPath @pathparts@+sys.path
+PythonOption root @root@
+PythonOption template_root @templateroot@
+PythonOption baseurl @baseurl@
+PythonHandler singleshot.ssmodpython
 
-### begin singleshot
+"""
 
-RewriteEngine on
+HTACCESS_TEMPLATE = """RewriteEngine on
 
 # Change this to match the URI path to this directory (probably an Alias
 # unless you are in the DocumentRoot)
@@ -38,20 +44,14 @@ RewriteRule (^Makefile) - [F]
 RewriteRule (\.cfg) - [F]
 
 RewriteRule ^static/.*.(jpg|css|js|gif)$ - [L]
-RewriteRule ^static/(.*) @cgi@/static/$1 [L]
+RewriteRule ^static/(.*) @cgi@/view/$1 [L]
 
 RewriteRule ^@cgi@.* - [L]
 
 # Prevent URIs that arrive directly from view/ from being rewritten
 # below to a CGI which will generate the resized image.  Only allow
-# resized images accessed through images/
+# resized images accessed through /
 RewriteRule ^view/.* - [L]
-
-#
-# A request for a filtered, cached resized version image
-#
-#RewriteRule ^(.*)/filter:([a-zA-Z0-9]+)/([^/]*)-([1-9][0-9]+)(\.jpg)$ view/$1/__filter_$2_$3-$4$5  [NC,S=3]
-#RewriteRule ^(.*)/filter:([a-zA-Z0-9]+)/([^/]*)(\.jpg)$ view/$1/__filter_$2_$3-1200$4  [NC,S=2]
 
 # A -nnn suffix requests a cached resized version
 # Critical that this rule [S]kip any other match-all-images rule
@@ -62,38 +62,13 @@ RewriteRule ^(.*)-([1-9][0-9]+)(\.jpg)$ view/$1-$2$3  [NC,S=1]
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^(.*)(\.jpg)$ view/resize/$1-1200$2 [NC]
 
-#
-# If it's a request for a filtered, cached resized version and it does not
-# yet exist, rewrite to a cgi that will produce it
-#
-#RewriteCond %{REQUEST_FILENAME} (.*)/view/(.*)/__filter_([A-Za-z0-9]+)_([^/]+)-([1-9][0-9]+|full)(\.jpg)$ [NC]
-#RewriteCond %{REQUEST_FILENAME} !-f
-#RewriteRule .*        @cgi@/resize/%2/%4%6?size=%5&filter=%3 [L]
-
-
-
 # If it's a -nnn suffix request for a cached resized version *AND* that
 # size is not yet cached, rewrite to a cgi which will produce it
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^view/(.*)-([1-9][0-9]+)(\.jpg)$   @cgi@/resize/$1$3?size=$2 [L]
 
-# If it's a request for FOO.html, rewrite to the view page
-RewriteCond %{REQUEST_FILENAME} (.*)\.html	[NC]
-RewriteRule ^(.*).html$        @cgi@/view/$1 [L]
-
-# A request for a directory that exists is rewritten to the album cgi
-RewriteCond %{REQUEST_URI} /$
-RewriteCond %{REQUEST_FILENAME} -d [NC]
-RewriteRule .*        @cgi@/view/%{REQUEST_URI} [L]
-
-#
-# A request for a directory or file that does not exist is rewritten to the virtual handler
-#
-
-RewriteCond %{REQUEST_FILENAME} !-f 
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule .*        @cgi@/virtual/%{REQUEST_URI} [L,NS]
-### end singleshot
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule .*        @cgi@/view/%{REQUEST_URI} [L,NS]
 """
 
 
@@ -212,7 +187,7 @@ def main():
 #    if not os.path.exists(ssdir):
 #        os.makedirs(ssdir)
 
-    write_template(subs, HTACCESS_TEMPLATE, options.force,
+    write_template(subs, "### begin singleshot\n" + HTACCESS_TEMPLATE + "### end singleshot", options.force,
                    os.path.join(options.root, '.htaccess'))
 
     cgi = os.path.join(options.root, cgipath)
