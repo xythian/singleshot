@@ -12,4 +12,4 @@ def all_templates():
     mydir, myname = os.path.split(__file__)
     for name in os.listdir(mydir):
         if name.endswith('.html'):
-            yield name, open(os.path.join(mydir, myname)).read()
+            yield name, open(os.path.join(mydir, name)).read()

@@ -5,6 +5,7 @@ from optparse import OptionParser
 import re
 import os
 from stat import *
+from glob import glob
 
 #
 # A script to initialize a singleshot image root
@@ -98,9 +99,28 @@ def write_template(subs, template, force, path):
     f = open(path, 'w')
     f.write(text)
     f.close()
-    
 
+def build_zip(dest):
+    print 'Writing',dest
+    from zipfile import PyZipFile
+    f = PyZipFile(dest, 'w')
+    f.writepy('src/singleshot')
+    f.writepy('lib')
+    f.writepy('lib/simpletal')    
+    f.close()
+        
 def main():
+    path, fn = os.path.split(__file__)
+    parent, name = os.path.split(path)
+    unpack_root = None
+    if name == 'scripts':
+        unpack_root = parent
+        # probably running in the unpacked source tree
+        # add lib and src to path
+        sys.path.insert(0, os.path.join(parent, 'lib'))
+        sys.path.insert(0, os.path.join(parent, 'src'))
+        from singleshot import templates
+        
     parser = OptionParser("usage: %prog [options] --url urlprefix --root directory")
     parser.add_option("--url",
                       action="store",
@@ -124,8 +144,11 @@ def main():
     parser.add_option('--cginame',
                       type="string",
                       dest="cginame",
-                      default="singleshot.py",
+                      default="singleshot.cgi",
                       help="Sets the name of the singleshot CGI script")
+    parser.add_option('--standalone',
+                      action='store_true',
+                      help="Package up the singleshot and support libraries and put them in the web root as standalone libraries (this only works when run from the unpacked tarball.")
     parser.add_option('--modpython',
                       action='store_true',
                       default=False,
@@ -149,7 +172,7 @@ def main():
     if pathparts:
         pathparts.reverse()
     else:
-        pathparts = ()
+        pathparts = []
 
     try:
         pp = os.environ['PYTHONPATH']
@@ -166,6 +189,18 @@ def main():
 
     mainargs = ['baseurl=%s' % repr(options.url),
                 'root=%s' % repr(os.path.abspath(options.root))]
+    if options.standalone and options.modpython:
+        parser.error('--standalone and --modpython are not compatible :-(')
+
+    if options.standalone:
+        if not unpack_root:
+            parser.error("It doesn't look like I'm being run from the tarball unpack directory.  I don't know how to build the zip file.")
+        dest = os.path.join(options.root, '.singleshot')
+        if not os.path.exists(dest):
+            os.makedirs(dest)
+        zippath = os.path.join(dest, 'singleshot.zip')
+        build_zip(zippath)
+        pathparts.insert(0, zippath)
 
     if pathparts:
         pathparts = [os.path.abspath(path) for path in pathparts]
@@ -192,9 +227,12 @@ def main():
                 if not os.path.exists(path):
                     print 'Writing',path,'...'
                     open(path, 'w').write(data)
+                else:
+                    print 'Skipping',path,'...'
         except ImportError:
             print >>sys.stderr, 'Unable to find templates.  Ensure singleshot is on the path?'
-        
+
+            
         
     subs = {'python' : sys.executable,
             'rewritebase' : options.url[:-1],
@@ -206,11 +244,6 @@ def main():
             'pathparts' : repr(pathparts).replace(' ',''),
             'pathhack' : pathhack,
             'mainargs' : ','.join(mainargs)}
-
-    ssdir = os.path.join(options.root, 'singleshot')
-    
-    if not os.path.exists(ssdir):
-        os.makedirs(ssdir)
 
     httmpl = HTACCESS_TEMPLATE
     if options.modpython:
