@@ -82,12 +82,25 @@ class CGIRequest(sshandler.Request):
     def log(self, message):
         print >>sys.stderr, '[singleshot:%s]' % str(datetime.now()), message
 
+def exception_handler(etype, evalue, etb):
+    out = sys.stdout
+    out.write("""<!--: spam
+Content-type: text/html
+
+-->
+An error has occured during processing.  :-(""")
+    out.flush()
+    now = datetime.now()
+    s = "[singleshot exception: %s]" % str(now)
+    s += cgitb.text((etype, evalue, etb))
+    s += "[end singleshot exception]\n"
+    sys.stderr.write(s)
+    sys.stderr.flush()
 
 def main(root=None, path=os.environ['PATH_INFO'][1:], **config):
-    cgitb.enable()
+    sys.excepthook = exception_handler
     
     store = ssconfig.create_store(root, **config)
-
     request = CGIRequest(store, path)
     sshandler.handle(request)
 
