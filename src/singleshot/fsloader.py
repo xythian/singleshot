@@ -13,6 +13,7 @@ import cPickle as pickle
 #import pickle
 import sys
 
+import fnmatch
 
 class FSLoader(object):
     def __init__(self, store):
@@ -114,9 +115,14 @@ class DirectoryFSLoader(FSLoader):
             fspath1 = os.path.join(fspath, name)
             if self.config.ignore_path(fspath1):
                 continue
-            path1 = fspath1[l:]
-            if self._load_item(path1):
-                contents.append(path1)
+            elif os.path.isdir(fspath1):
+                pass
+            elif fnmatch.fnmatch(name.lower(), '*.jpg'):
+                pass
+            else:
+                continue
+            path1 = fspath1[l:]            
+            contents.append(path1)
         d.contents = contents
         return d
 
@@ -129,13 +135,13 @@ class ItemLoader(object):
             todo = [item]
             while todo:
                 item = todo.pop()
-                if item:
-                    yield item
-                else:
-                    continue
+                assert item != None
+                yield item
                 if item.iscontainer:
                     for path in item.contents:
-                        todo.append(load(path))    
+                        item = load(path)
+                        assert item != None
+                        todo.append(item)    
         return walk(self.load_item, self.load_item('/'))
 
 class MemoizeLoader(ItemLoader):
@@ -160,9 +166,6 @@ class FilesystemLoader(ItemLoader):
                         DirectoryFSLoader(store, self.load_item)]
         self._cache = {}
 
-    def load_cached_item(self, path):
-        return None
-
     def load_item(self, path):
         if path.endswith('/') and len(path) > 1:
             path = path[:-1]
@@ -180,7 +183,7 @@ class FilesystemLoader(ItemLoader):
         try:
             item = self._cache[path]
         except KeyError:            
-            item = self.load_cached_item(path)
+            item = None
 
         if not item:
             mtime = 0
@@ -193,7 +196,6 @@ class FilesystemLoader(ItemLoader):
             if item:
                 for alias in item.aliases:
                     self._cache[alias] = item
-
         return item
     
     
@@ -477,8 +479,9 @@ class SingleshotLoader(ItemLoader):
         load_item = self._load_item
         data._itemlist.append(load_item('/'))
         for item in self._parent.walk():
+            assert item != None
             data._itemlist.append(item)
-            if not item.iscontainer:
+            if isinstance(item, ImageItem):
                 itemid = len(data._itemlist) - 1
                 path = item.path
                 data._allimages |= 1L << itemid

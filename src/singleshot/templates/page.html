@@ -3,21 +3,63 @@
       xmlns:metal="http://xml.zope.org/namespaces/metal"
       metal:define-macro="page">
   <head>
-    <title>Ken's Photos: <span tal:content="title" tal:omit-tag="">Page Title</span></title>
-    <link rel="stylesheet" type="text/css"  title="site style" href="common.css" tal:attributes="href ssroot/static/site.css" />
-    <link rel="alternate" type="application/rss+xml" title="RSS 2.0 recent photos" tal:attributes="href ssroot/rss/recent/" />
+    <title><span tal:content="title" tal:omit-tag="">Page Title</span></title>
+    <link rel="alternate" type="application/rss+xml" title="RSS 2.0
+	 recent photos" tal:attributes="href ssroot/rss/recent/" />
+<style>
+  .header a { text-decoration: none; }
+
+body {  padding: 5px;  font-family: 'Lucida Grande', Verdana, Arial, Sans-Serif;  text-align: center; }
+
+.textblock {  text-align: left;  font-family: Georgia, serif;
+margin-left: 4em;  margin-right: 4em; }
+
+.error {  border: 3px solid red;  margin: 10px;  padding: 5px; }
+
+.photo { border: 5px solid black; margin: 15px; }
+.thumbnail { border: 2px solid black; margin: 5px; }
+
+#header { height: 50px; padding: 5px; font-size: 15px; margin-bottom: 10px; }
+
+#footer {
+  margin-top: 40px;
+  border-top: 1px dotted #888888;
+  font-size: .7em;
+  color: #333333;
+}
+
+
+.itemcrumbs {
+   text-align: left;
+   font-size: .8em;
+   padding-bottom: 5px;
+}
+
+.headerimg { float: left; }
+
+.navlinks { display: inline; }
+
+.navlinks li {
+  display: inline;
+  padding-right: 10px;
+}
+
+#rsslink {
+   font-size: 9px;
+   font-weight: bold;
+   background-color: #FF6600;
+   color: #ffffff;
+   border: 3px solid black;
+   padding: 3px;
+}
+</style>
    </head>
 <body>
 <div id="page">
-<div id="header"><a tal:attributes="href ssroot/"  class="headerimg" ><img tal:attributes="src ssroot/static/photos-title.jpg"
-height="50" width="400" border="0"></a> 
-<ul class="navlinks">
+<div id="header">Singleshot: <ul class="navlinks">
 <li><a tal:attributes="href ssroot/">Home</a></li>
 <li><a tal:attributes="href ssroot/albums/">albums</a></li>
 <li><a tal:attributes="href ssroot/keyword/">keywords</a></li>
-<li><a tal:attributes="href ssroot/static/about/">about</a></li>
-<li><a tal:attributes="href ssroot/static/prints/">prints</a></li>
-<li><a tal:attributes="href ssroot/static/contact/">contact</a></li>
 </ul>
 </div>
 
@@ -32,9 +74,6 @@ tal:attributes="href crumb/link" tal:content="crumb/title">Crumb</a> &gt; </span
 
 
 <div id="content"><div metal:define-slot="content">Sample content</div></div>
-<div id="footer">
-<div class="copyright">All images and content &copy; 1989-2005 Ken Fox
-unless otherwise noted.  All rights reserved.  See <a tal:attributes="href ssroot/static/about/">about</a> for license details.</div>
-</div></div>
+<div id="footer">Powered by <a href="http://www.singleshot/">Singleshot</a>.</div>
 </body></html>
 </macros>

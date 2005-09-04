@@ -7,7 +7,7 @@
 <h2 tal:content="item/title">Album Title</h2>
 <table class="thumbnails" align="center">
   <tr tal:repeat="row itemsbyrows/3">
-     <td valign="top" tal:repeat="item row" tal:attributes="class item/cssclassname"><a tal:condition="item" href="#"
+     <td valign="top" tal:repeat="item row" tal:attributes="class item/cssclassname"><a tal:condition="item/image" href="#"
 	  tal:attributes="href item/href;title item/title"><img 
            tal:define="t item/image/sizes/thumb" tal:attributes="src t/href;height t/height;width t/width" class="thumbnail" border="0" /></a><br /><a tal:content="item/title" tal:attributes="href item/href">Item title</a></td></tr></table>
        
