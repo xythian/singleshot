@@ -64,7 +64,8 @@ class ImageProcessor(object):
             target.exposure_duration = repr(header.exposure.duration)
         if header.exposure.aperture:
             target.exposure_aperture = 'f/' +header.exposure.aperture.floatformat()
-        target.exposure_focal = header.exposure.focal
+        if header.exposure.focal:
+            target.exposure_focal = header.exposure.focal.floatformat()
         target.exposure_iso = header.exposure.iso
         target.height = header.height
         target.width = header.width

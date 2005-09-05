@@ -29,6 +29,8 @@ class Ratio(object):
         return '%d/%d' % (self.num, self.den)
 
     def floatformat(self):
+        if self.den == 1:
+            return str(self.num)
         return '%.1f' % (float(self.num)/
                          float(self.den))
 
