@@ -14,7 +14,7 @@ class Item(object):
     aliases = ()        # other paths to this item
     title = ''
     caption = ''
-    publish_time = None    # the time an image is considered 'published'
+    publish_time = None   # the time an image is considered 'published'
 
     modify_time = None    # the last time this item was modified
 
@@ -104,9 +104,12 @@ class ImageItem(Item):
     viewfilepath = ''
 
     capture_time = None    # datetime image was captured
-    camera_name = None
-    exposure_time = None   # 
-    aperture = None
+    camera_mfg = None
+    camera_model = None
+    exposure_duration = None   #
+    exposure_aperture = None
+    exposure_focal = None
+    exposure_iso = None
 
     capture_location = None
 

@@ -97,8 +97,12 @@ An error has occured during processing.  :-(""")
     sys.stderr.write(s)
     sys.stderr.flush()
 
-def main(root=None, path=os.environ['PATH_INFO'][1:], **config):
-    sys.excepthook = exception_handler
+def main(show_exceptions=False,
+         root=None, path=os.environ['PATH_INFO'][1:], **config):
+    if show_exceptions:
+        cgitb.enable()
+    else:
+        sys.excepthook = exception_handler
     
     store = ssconfig.create_store(root, **config)
     request = CGIRequest(store, path)

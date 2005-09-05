@@ -6,6 +6,8 @@
 # Updated and turned into general-purpose library by Gene Cash
 # <email gcash at cfl.rr.com>
 #
+# Updated for use with Singleshot by Ken Fox.
+#
 # This copyright license is intended to be similar to the FreeBSD license. 
 #
 # Copyright 2002 Gene Cash All rights reserved. 
@@ -145,7 +147,7 @@ EXIF_TAGS={
     0x8827: ('ISOSpeedRatings', ),
     0x8828: ('OECF', ),
     # print as string
-    0x9000: ('ExifVersion', lambda x: ''.join(map(chr, x))),
+    0x9000: ('ExifVersion',  str),
     0x9003: ('DateTimeOriginal', ),
     0x9004: ('DateTimeDigitized', ),
     0x9101: ('ComponentsConfiguration',
@@ -198,7 +200,7 @@ EXIF_TAGS={
     0x920A: ('FocalLength', ),
     0x927C: ('MakerNote', ),
     # print as string
-    0x9286: ('UserComment', lambda x: ''.join(map(chr, x))),
+    0x9286: ('UserComment', str),
     0x9290: ('SubSecTime', ),
     0x9291: ('SubSecTimeOriginal', ),
     0x9292: ('SubSecTimeDigitized', ),
@@ -629,21 +631,22 @@ MAKERNOTE_CANON_TAG_0x004={
     19: ('SubjectDistance', )
     }
 
-# extract multibyte integer in Motorola format (little endian)
-def s2n_motorola(str):
-    x=0
-    for c in str:
-        x=(x << 8) | ord(c)
-    return x
+from struct import unpack
+FORMATS = { 1 : ord,
+            2 : lambda x:(ord(x[1])<<8) + ord(x[0]),
+            4 : lambda x:(ord(x[3])<<24L) + (ord(x[2])<<16L) + (ord(x[1])<<8L) + (ord(x[0])),
+            -1 : ord,
+            -2 : lambda x:(ord(x[0])<<8) + ord(x[1]),
+            -4 : lambda x:(ord(x[0])<<24L) + (ord(x[1])<<16L) + (ord(x[2])<<8L) + (ord(x[3]))}
 
-# extract multibyte integer in Intel format (big endian)
+
+# extract multibyte integer in Motorola format (big endian)
+def s2n_motorola(str):
+    raise FORMATS[-len(str)](str)
+
+# extract multibyte integer in Intel format (little endian)
 def s2n_intel(str):
-    x=0
-    y=0L
-    for c in str:
-        x=x | (ord(c) << y)
-        y=y+8
-    return x
+    return FORMATS[len(str)](str)
 
 # ratio object that eventually will be able to reduce itself to lowest
 # common denominator for printing
@@ -653,7 +656,7 @@ def gcd(a, b):
    else:
       return gcd(b, a % b)
 
-class Ratio:
+class Ratio(object):
     def __init__(self, num, den):
         self.num=num
         self.den=den
@@ -671,7 +674,7 @@ class Ratio:
             self.den=self.den/div
 
 # for ease of dealing with tags
-class IFD_Tag:
+class IFD_Tag(object):
     def __init__(self, printable, tag, field_type, values, field_offset,
                  field_length):
         # printable version of data
@@ -704,15 +707,16 @@ class EXIF_header:
         self.offset=offset
         self.debug=debug
         self.tags={}
+        if self.endian == 'I':
+            self._s2n = s2n_intel
+        else:
+            self._s2n = s2n_motorola
         
     # convert slice to integer, based on sign and endian flags
     def s2n(self, offset, length, signed=0):
         self.file.seek(self.offset+offset)
         slice=self.file.read(length)
-        if self.endian == 'I':
-            val=s2n_intel(slice)
-        else:
-            val=s2n_motorola(slice)
+        val = self._s2n(slice)
         # Sign extension ?
         if signed:
             #msb=1 << (8*length-1)
@@ -907,6 +911,7 @@ class EXIF_header:
             # bug: everything else is "Motorola" endian, but the MakerNote
             # is "Intel" endian 
             endian=self.endian
+            sx = self._s2n
             self.endian='I'
             # bug: IFD offsets are from beginning of MakerNote, not
             # beginning of file header
@@ -916,6 +921,7 @@ class EXIF_header:
             self.dump_IFD(12, 'MakerNote', dict=MAKERNOTE_FUJIFILM_TAGS)
             # reset to correct values
             self.endian=endian
+            self._s2n = sx
             self.offset=offset
             return
         

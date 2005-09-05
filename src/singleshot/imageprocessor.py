@@ -38,11 +38,11 @@ class ImageProcessor(object):
         self.store = store
         self.config = store.config
 
-    def handles(self, ext, fspath):
-        return ext.lower() == '.jpg'
+    def handles(self, fileinfo):
+        return fileinfo.isa('.jpg')
 
-    def load_exif(self, fspath):
-        file=open(fspath, 'rb')
+    def load_exif(self, fileinfo):
+        file=open(fileinfo.path, 'rb')
         try:
             data = EXIF.process_file(file)
         except:
@@ -51,32 +51,24 @@ class ImageProcessor(object):
         file.close()
         return data         
 
-    def find_publish_time(self, header, img):
-        t = 0.0
-        for search in ('DateTimeDigitized', 'DateTimeOriginal', 'DateCreated'):
-            if hasattr(header.xmp, search):
-                t = getattr(header.xmp, search)
-                break        
-        if not t:
-            exif = self.load_exif(img.rawimagepath)
-            try:
-                et = exif['EXIF DateTimeDigitized']
-                t = parse_exif_date(et)
-            except KeyError:
-                pass
-        return t
 
-    def load_metadata(self, target, ext, fspath):
-        header = JpegHeader(fspath)
-        if header.xmp.Headline:
-            target.title = header.xmp.Headline
-        elif header.itpc.title:
-            target.title = header.itpc.title
-        target.caption = header.itpc.caption
+    def load_metadata(self, target, fileinfo):
+        header = JpegHeader(fileinfo.path)
+        if header.iptc.title:
+            target.title = header.iptc.title
+        target.caption = header.iptc.caption
+        target.capture_time = header.exposure.capture_time
+        target.camera_model = header.exposure.camera_model
+        target.camera_mfg =header.exposure.camera_mfg
+        target.exposure_duration = header.exposure.duration
+        target.exposure_aperture = header.exposure.aperture
+        target.exposure_focal = header.exposure.focal
+        target.exposure_iso = header.exposure.iso
         target.height = header.height
         target.width = header.width
-        target.publish_time = self.find_publish_time(header, target)
-        target.keywords = header.xmp.keywords
+        target.publish_time = header.exposure.capture_time
+        if header.iptc.keywords:
+            target.keywords = header.iptc.keywords
         return target    
 
 class ImageMagickProcessor(ImageProcessor):
@@ -100,9 +92,9 @@ class ImageMagickProcessor(ImageProcessor):
             trace("ImageProcessor failed for %s -> %s", source, dest)
 
 class PILProcessor(ImageProcessor):
-    def load_exif(self, fspath):        
+    def load_exif(self, fileinfo):        
         try:
-            data = Image.open(path)._getexif()
+            data = Image.open(fileinfo.path)._getexif()
         except:
             return {}
         if not data:
@@ -110,7 +102,7 @@ class PILProcessor(ImageProcessor):
         result = {}
         # add more tags later
         for tag in (36868, 36867):
-            try:
+            try:                
                 result[ExifTags.TAGS[tag]] = data[tag]
             except KeyError:
                 pass

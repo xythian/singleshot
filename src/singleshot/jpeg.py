@@ -1,8 +1,9 @@
 from singleshot.properties import *
 from singleshot.storage import FilesystemEntity
 from singleshot.xmp import XMPHeader, EmptyXMPHeader
+from singleshot.exif import Ratio
 
-import EXIF
+#import EXIF
 
 import os
 import tempfile
@@ -10,8 +11,54 @@ import shutil
 from cStringIO import StringIO
 import re
 import time
+import mmap
 
 EXIFDT = re.compile(r'(?P<year>\d\d\d\d):(?P<month>\d\d):(?P<day>\d\d) (?P<hour>\d\d):(?P<minute>\d\d):(?P<second>\d\d)')
+
+def iptc_property(tuple, typ=None):
+    def _delegate_get(self):
+        result = self._get_property(tuple)
+        if typ:
+            if isinstance(result, str):
+                return (result,)
+            else:
+                return result
+        else:
+            return result
+    return property(_delegate_get)
+    
+class IptcHeader(object):
+    def __init__(self, iptckeys):
+        data = {}
+        for tag, val in iptckeys:
+            try:
+                existing = data[tag]
+                if isinstance(existing, str):
+                    existing = [existing]
+                    data[tag] = existing
+                existing.append(val)
+            except KeyError:
+                data[tag] = val
+        self.info = data
+
+    def _get_property(self, tuple):
+        try:
+            return self.info[tuple]
+        except KeyError:
+            return ''
+
+    caption = iptc_property((2, 120))
+    author = iptc_property((2, 80))
+    headline = iptc_property((2, 105))
+    keywords = iptc_property((2, 25), tuple)
+    title = iptc_property((2, 05))
+
+class DummyIptc(object):
+    caption = ''
+    author = ''
+    headline = ''
+    keywords = ()
+    title = ''
 
 def parse_exif_date(dt):
     dt = str(dt)
@@ -24,48 +71,6 @@ def parse_exif_date(dt):
     t = time.mktime((year, month, day, hour, minute, second, -1, -1, 0))
     return t
     
-
-HAS_ITPC = False
-try:
-    import IptcImagePlugin
-    import Image
-
-    IptcImagePlugin.getiptcinfo   # make sure the function we need is there
-    
-    def itpc_property(tuple):
-        def _delegate_get(self):
-            return self._get_property(tuple)
-        return property(_delegate_get)
-    
-    class ItpcHeader(object):
-        def __init__(self, path):
-            img = Image.open(path)
-            self.info = IptcImagePlugin.getiptcinfo(img)
-	    if not self.info:
-		self.info = {}
-
-        def _get_property(self, tuple):
-            try:
-                return self.info[tuple]
-            except KeyError:
-                return ''
-
-        caption = itpc_property((2, 120))
-        author = itpc_property((2, 80))
-        headline = itpc_property((2, 105))
-        keywords = itpc_property((2, 25))
-        title = itpc_property((2, 05))
-        
-        
-    HAS_ITPC = True
-except:
-    class DummyItpc(object):
-        caption = ''
-        author = ''
-        headline = ''
-        keywords = ''
-        title = ''
-    DUMMY_ITPC = DummyItpc()
 
 def calculate_box(size, width, height):
     if height > width:
@@ -83,6 +88,17 @@ def calculate_box(size, width, height):
 def decode_2byte(bytes):
     return ord(bytes[0]) * 256 + ord(bytes[1])
 
+from struct import pack, unpack, calcsize
+
+
+class ExposureMetadata(object):
+    capture_time = None
+    camera_mfg = None
+    camera_model = None
+    duration = None
+    aperture = None
+    focal = None
+    iso = None
 
 class JpegHeader(object):
     __metaclass__ = AutoPropertyMeta
@@ -90,43 +106,99 @@ class JpegHeader(object):
         self.comment = ''
         self.height = 0
         self.width = 0
-        self.load(path)
+        self.iptc = DummyIptc()
         self.path = path
+        self.exposure = ExposureMetadata()
+        self.load(path)
         
 
-    def _load_itpc(self):
-        if HAS_ITPC:            
-            return ItpcHeader(self.path)
-        else:
-            return DUMMY_ITPC
-     
 
-    def handle_sof(self, body):
-        self.height = decode_2byte(body[1:3])
-        self.width = decode_2byte(body[3:5])
+    def handle_sof(self, body, offset, length):
+        self.height, self.width = unpack('>HH', body[offset+1:offset+5])
 
-    def handle_comment(self, body):
-        self.comment = body
+    def handle_comment(self, body, offset, length):
+        self.comment = body[offset:offset+length]
+
+    def handle_xmp(self, body, offset, length):
+        self.__xmpbody = body[offset:offset+length]
+
+    def handle_photoshop(self, body, offset, length):
+        if body[offset:offset+14] != 'Photoshop 3.0\x00':
+            return
+        offset += 14
+        while body[offset:offset+4] == '8BIM':        
+            offset += 4
+            code, namel = unpack('>HB', body[offset:offset+3])
+            offset += 3
+            offset += namel
+            if offset & 1:
+                offset += 1
+            size = unpack('>I', body[offset:offset+4])[0]
+            offset += 4
+            if code == 0x404:
+                self.iptc = IptcHeader(self.iptc_tags(offset, body, offset+size))
+            offset += size
+            if offset & 1:
+                offset += 1
+
+
+    def handle_exif(self, body, soffset, l):
+        def bytes_of(start, length):
+            return body[soffset+start:soffset+start+length]
+        offset = soffset
+        endian = body[offset:offset+2]
+        e = {'II' : '<', 'MM' : '>'}[endian]
+        def _unpack(fmt, val):
+            return unpack(e+fmt, val)
+        ifd_offset = _unpack('I', body[offset+4:offset+8])[0]
+        xoffset = offset
+        offset += ifd_offset
+        data = self.decode_tags(body, offset, bytes_of, _unpack)
+        exififd = 0
+        try:
+            exififd = data[0x8769]
+        except KeyError:
+            pass
+        self.exposure.camera_mfg = data.get(0x10f)
+        self.exposure.camera_model = data.get(0x110)
+        self.exposure.capture_time = parse_exif_date(data.get(0x132))
+        if exififd:
+            exif = self.decode_tags(body, xoffset+exififd, bytes_of, _unpack)
+            self.exposure.duration = exif.get(0x29a)
+            self.exposure.aperture = exif.get(0x829d)
+            self.exposure.focal = exif.get(0x920A)
+            self.exposure.iso = exif.get(0x8827)
+        
+
+    def handle_app1(self, body, offset, length):
+        if body[offset:offset+6] == 'Exif\x00\x00':
+            self.handle_exif(body, offset+6, length-6)
+#        elif body.startswith('http://ns.adobe.com/xap/1.0/\x00'):
+#            self.handle_xmp(body[29:])
+#        print body
+
 
     def _read_header(self, path, callbacks):
-        file = open(path, 'rb')
+        fd = os.open(path, os.O_RDONLY)
+        l = os.fstat(fd).st_size
+        f = mmap.mmap(fd, l, access=mmap.ACCESS_READ)
+        file = f
         try:
-           file.seek(0)
-           header = file.read(2)
-           if header != '\xFF\xD8':
-                return ''
-           subhdr = file.read(4)
+           if file[:2] != '\xFF\xD8':
+               return ''
+           offset = 2
+           subhdr = file[offset:offset+4]
            while (subhdr[0] == '\xFF') and callbacks:
-              type = ord(subhdr[1])              
-              length = decode_2byte(subhdr[2:4]) - 2
-              try:
-                  callback = callbacks[type]                  
-                  body = file.read(length)
-                  callback(body)
-              except KeyError:
-                  file.seek(length, 1)
-              subhdr = file.read(4);
-           return ''
+               ff, type, length = unpack('>BBH', subhdr)
+               offset += 4
+               length -= 2
+               try:
+                   callback = callbacks[type]
+                   callback(file, offset, length)
+               except KeyError:
+                   pass
+               offset += length              
+               subhdr = file[offset:offset+4]
         finally:
             file.close()
 
@@ -137,17 +209,79 @@ class JpegHeader(object):
             self.__xmp_parsed = self.emptyxmp
         return self.__xmp_parsed        
 
-    def handle_xmp(self, body):
-        self.__xmpbody = body
-#        self.xmp = XMPHeader(body)
 
-    def handle_app1(self, body):
-        if len(body) > 4 and body[:4] == 'Exif':
-            pass # exif data
-        elif body.startswith('http://ns.adobe.com/xap/1.0/\x00'):
-            self.handle_xmp(body[29:])
-        pass
-#        print body
+    def iptc_tags(self, offset, body, endoffset):
+        while offset+3 < endoffset:
+            hdr, t1, t2 = unpack('>BBB', body[offset:offset+3])
+            if hdr != 0x1C or t1 < 1 or t1 > 9:
+                break
+            offset += 3
+            size = ord(body[offset])
+            if size & 128:
+                sizesize = ((size-128) << 8) + (ord(body[offset]))
+                offset += 2
+                size = unpack('>I', ('\x00\x00\x00\x00' + body[offset:offset+sizesize][:-4]))
+                offset += sizesize
+            else:
+                size = (size << 8) + ord(body[offset+1])
+                offset += 2
+            data = body[offset:offset+size]
+            offset += size
+            yield (t1, t2), data
+            
+
+    def ratiozip(self, data):
+        ix = iter(data)        
+        try:
+            r = Ratio(ix.next(), ix.next())
+            r.reduce()
+            yield r
+        except StopIteration:
+            pass
+
+    def decode_tags(self, body, offset, bytes_of, _unpack):
+        count = _unpack('H', body[offset:offset+2])[0]
+        offset += 2
+        result = {}
+        for c in xrange(count):
+            tag, typ, count, voffset = _unpack('HHII', body[offset:offset+12])
+            if typ == 1 and count < 4:
+                val = map(ord, body[offset+9:offset+9+count])
+            elif typ == 1:
+                val = map(ord, bytes_of(voffset, count))
+            elif typ == 2:
+                val = bytes_of(voffset, count-1)
+            elif typ == 3 and count == 1:
+                val = _unpack('H', body[offset+8:offset+10])[0]
+            elif typ == 3 and count == 2:
+                val = _unpack('HH', body[offset+8:offset+10])
+            elif typ == 3:
+                val = _unpack(('H' * count), bytes_of(voffset, 2*count))
+            elif typ == 4 and count == 1:
+                val = voffset
+            elif typ == 4 and count > 1:
+                val = _unpack(('I' * count), bytes_of(voffset, 4*count))
+            elif typ == 5:
+                val = tuple(self.ratiozip(_unpack(('II' * count), bytes_of(voffset, 8*count))))
+                if len(val) == 1:
+                    val = val[0]
+            elif typ == 7 and count < 4:
+                val = body[offset+8:offset+8+count]
+            elif typ == 7:
+                val = bytes_of(voffset, count)
+            elif typ == 9 and count == 1:
+                val = _unpack('i', body[offset+8:offset+12])[0]
+            elif typ == 9:
+                val = _unpack(('i'*count), bytes_of(voffset, count*4))
+            elif typ == 10:
+                val = _unpack(('ii'*count), bytes_of(voffset, count*8))
+            else:
+                val = ''                
+            offset += 12
+            result[tag] = val
+        return result
+        
+
 
     emptyxmp = EmptyXMPHeader()
 
@@ -155,7 +289,8 @@ class JpegHeader(object):
         self.__xmp_parsed = None
         self.__xmpbody = None
         self._read_header(path, {0xC0 : self.handle_sof,
-                                 0xFE : self.handle_comment,
+#                                 0xFE : self.handle_comment,
+                                 0xED : self.handle_photoshop,
                                  0xE1 : self.handle_app1})
 
 

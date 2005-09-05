@@ -1,34 +1,41 @@
-from singleshot.properties import *
-import os
+from singleshot.properties import demand_property, delegate_property
 
-class FilesystemEntity(object):
-    def __init__(self, path):
+from os import stat
+from os.path import basename, dirname, splitext, isdir, exists, join
+
+class FileInfo(object):
+    def __init__(self, path, rest=None):
+        if rest:
+            path = join(path, rest)
         self.__path = path
-        super(FilesystemEntity, self).__init__()        
+        super(FileInfo, self).__init__()        
 
     def _get_path(self):
         return self.__path
 
     def _get_basename(self):
-        return os.path.basename(self.path)
+        return basename(self.path)
 
     def _get_dirname(self):
-        return os.path.dirname(self.path)
+        return dirname(self.path)
 
     def _get_filename(self):
-        return os.path.splitext(self.basename)[0]
+        return splitext(self.basename)[0]
 
     def _get_extension(self):
-        return os.path.splitext(self.basename)[1]
+        return splitext(self.basename)[1]
 
     def _load_st_info(self):
         return self.stat()
 
     def _get_isdir(self):
-        return os.path.isdir(self.path)
+        return isdir(self.path)
 
     def _get_exists(self):
-        return os.path.exists(self.path)
+        return exists(self.path)
+
+    def isa(self, ext):
+        return self.extension.lower() == ext
 
     st_info = demand_property('st_info', _load_st_info)
     mtime = delegate_property('st_info', 'st_mtime')
@@ -41,4 +48,7 @@ class FilesystemEntity(object):
     exists = property(_get_exists)
 
     def stat(self):
-        return os.stat(self.path)
+        return stat(self.path)
+
+class FilesystemEntity(FileInfo):
+    pass

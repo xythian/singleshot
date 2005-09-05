@@ -1,4 +1,4 @@
-from singleshot.storage import FilesystemEntity
+from singleshot.storage import FilesystemEntity, FileInfo
 from singleshot.ssconfig import read_config
 from singleshot.jpeg import JpegHeader, parse_exif_date, calculate_box
 from singleshot.model import ContainerItem, ImageItem, MONTHS, DynamicContainerItem
@@ -20,42 +20,38 @@ class FSLoader(object):
         self.store = store
         self.config = store.config
 
-    def handles(self, path, ext, fspath):
+    def handles(self, finfo):
         return False
     
 
 class ImageFSLoader(FSLoader):
-    def handles(self, path, ext, fspath):
-        return self.store.processor.handles(ext, fspath)
+    def handles(self, fileinfo):
+        return self.store.processor.handles(fileinfo)
 
-    def load_path(self, path, ext, fspath):
+    def load_path(self, path, fileinfo):
         processor = self.store.processor
         
-        if path.endswith(ext):
-            path = path[:-len(ext)]        
+        if path.endswith(fileinfo.extension):
+            path = path[:-len(fileinfo.extension)]        
         img = ImageItem()
         img.path = path
-        img.aliases = (path + ext,)
-        img.rawimagepath = fspath
-        img.filename = os.path.basename(fspath)[:-len(ext)]
-        processor.load_metadata(img, ext, fspath)
-        st = os.stat(fspath)
-        img.modify_time = st.st_mtime
+        img.aliases = (path + fileinfo.extension,)
+        img.rawimagepath = fileinfo.path
+        img.filename = fileinfo.filename
+        processor.load_metadata(img, fileinfo)
+        img.modify_time = fileinfo.mtime
         if not img.publish_time:
-            pth = os.path.dirname(img.rawimagepath)
-            p = month_dir(pth)
+            p = month_dir(fileinfo.dirname)
             if p:
                 year, month, t = p
                 img.publish_time = t                            
             else:
-                img.publish_time = st.st_mtime
+                img.publish_time = fileinfo.mtime
         if not img.title.strip():
             img.title = img.filename
-        dirpath, img.filename = os.path.split(fspath)
-        rootzor = dirpath[len(self.store.root)+1:]
+        rootzor = fileinfo.dirname[len(self.store.root)+1:]
         img.viewfilepath = os.path.join(self.store.view_root, rootzor)
         return img       
-
 
 def month_dir(fspath):
     p2, p1 = os.path.split(fspath)
@@ -73,12 +69,12 @@ def month_dir(fspath):
 
 
 class DirectoryFSLoader(FSLoader):
-    def __init__(self, store, load_item):
+    def __init__(self, store, is_item):
         super(DirectoryFSLoader, self).__init__(store)
-        self._load_item = load_item
+        self._is_item = is_item
         
-    def handles(self, path, ext, fspath):
-        return os.path.isdir(fspath)
+    def handles(self, fileinfo):
+        return fileinfo.isdir
 
     def override_template(self, fspath, name):
         path = os.path.join(fspath, name)
@@ -87,39 +83,37 @@ class DirectoryFSLoader(FSLoader):
         else:
             return self.store.find_template(name)
 
-    def load_path(self, path, ext, fspath):
+    def load_path(self, path, fileinfo):
         d = ContainerItem()
-        config = read_config(os.path.join(fspath, '_album.cfg'),
+        config = read_config(os.path.join(fileinfo.path, '_album.cfg'),
                              { 'album': { 'title' : '',
                                           'highlightimage' : '',
                                           'order' : 'dir,title',
                                           }
                                })           
         d.order = config.get('album', 'order')
-        d.viewpath = self.override_template(fspath, 'album.html')
-        d.imageviewpath = self.override_template(fspath, 'view.html')
+        d.viewpath = self.override_template(fileinfo.path, 'album.html')
+        d.imageviewpath = self.override_template(fileinfo.path, 'view.html')
         d.title = config.get('album', 'title')
-        d.modify_time = os.stat(fspath).st_mtime        
+        d.modify_time = fileinfo.mtime
         d.publish_time = d.modify_time
         if not d.title:
-            mdir = month_dir(fspath)
+            mdir = month_dir(fileinfo.path)
             if mdir:
                 year, month, d.publish_time = mdir
                 d.title = '%s %d' % (MONTHS[month-1], year)
             else:
-                d.title = os.path.basename(fspath)
+                d.title = fileinfo.basename
         d.path = path
         contents = []
         l = len(self.store.root)
-        for name in os.listdir(fspath):
-            fspath1 = os.path.join(fspath, name)
+        for name in os.listdir(fileinfo.path):
+            fspath1 = os.path.join(fileinfo.path, name)
             if self.config.ignore_path(fspath1):
                 continue
             elif os.path.isdir(fspath1):
                 pass
-            elif fnmatch.fnmatch(name.lower(), '*.jpg'):
-                pass
-            else:
+            elif not self._is_item(FileInfo(fspath1)):
                 continue
             path1 = fspath1[l:]            
             contents.append(path1)
@@ -162,8 +156,9 @@ class FilesystemLoader(ItemLoader):
     def __init__(self, store):
         self.store = store
         self.config = store.config
-        self.loaders = [ImageFSLoader(store),
-                        DirectoryFSLoader(store, self.load_item)]
+        self.imgloader = ImageFSLoader(store) 
+        self.loaders = [self.imgloader,
+                        DirectoryFSLoader(store, self.imgloader.handles)]
         self._cache = {}
 
     def load_item(self, path):
@@ -174,11 +169,8 @@ class FilesystemLoader(ItemLoader):
             path = path[len(self.store.root):]
         elif not path:
             path = '/'            
-        fspath = os.path.join(self.store.root, path[1:])
-        st = os.stat(fspath)
-        bn = os.path.split(fspath)[1]
-        name, ext = os.path.splitext(bn)
-        if self.config.ignore_path(fspath):
+        finfo = FileInfo(self.store.root, path[1:])
+        if self.config.ignore_path(finfo.path):
             return None
         try:
             item = self._cache[path]
@@ -190,8 +182,8 @@ class FilesystemLoader(ItemLoader):
         else:
             mtime = item.modify_time
 
-        if not mtime or mtime > st.st_mtime:
-            item = self._load_path(path, ext, fspath)
+        if not mtime or mtime > finfo.mtime:
+            item = self._load_path(path, finfo)
             self._cache[path] = item
             if item:
                 for alias in item.aliases:
@@ -199,10 +191,10 @@ class FilesystemLoader(ItemLoader):
         return item
     
     
-    def _load_path(self, path, ext, fspath):
+    def _load_path(self, path, finfo):
         for loader in self.loaders:
-            if loader.handles(path, ext, fspath):
-                return loader.load_path(path, ext, fspath)
+            if loader.handles(finfo):
+                return loader.load_path(path, finfo)
         return None
 
 class ImageSize(FilesystemEntity):
@@ -334,20 +326,25 @@ class ItemData(object):
 
 class PickleCacheStore(object):
     def __init__(self, store, load_itemdata=None):
+        self.store = store
         self._cachepath = os.path.join(store.view_root, '.itemcache')
         self._data = False
         self._load_itemdata = load_itemdata
         self._itemmap = {}
+        self._directories = []
+        self.__uptodatecheck = 0
 
     def uptodate(self):
+        n = time.time()
         path = self._cachepath
-        now = time.time()
+        if self._directories and (n - self.__uptodatecheck) < 300.:
+            return True
         try:
-            s = os.stat(path)
-            if now > s.st_mtime + 86400:
-                return False
-            else:
-                return True
+            if self._directories:
+                self.__uptodatecheck = n            
+            t = os.stat(path).st_mtime
+            outofdate = [item for item in self._directories if os.stat(item).st_mtime > t]
+            return not bool(outofdate)
         except:
             pass
         return False        
@@ -374,14 +371,20 @@ class PickleCacheStore(object):
             self._prepare_data(itemdata)
         elif not self._data:
             self._read()
+            self.ready()
+                
 
     def _prepare_data(self, data):
+        self._directories = []
         self._data = data
         self._itemlist = data._itemlist
         self._itemmap = {}
         self._years = data._years
         for item in data._itemlist:
             assert item != None
+            if item.iscontainer:
+                self._directories.append(os.path.join(self.store.root,
+                                                      item.path[1:]))
             self._itemmap[item.path] = item
             for alias in item.aliases:
                 self._itemmap[alias] = item
@@ -433,7 +436,7 @@ class PickleCacheStore(object):
 
     def most_tags(self):
         self.ready()        
-        return [(tag.name, tag) for tag in self.tags.values() if tag.count > 3 and not tag.name.startswith('publish:')]
+        return [(tag.name, tag) for tag in self.tags.values() if tag.count > 3 and ':' not in tag.name]
 
     def recent_images(self, count=10):
         self.ready()        
@@ -511,6 +514,8 @@ class SingleshotLoader(ItemLoader):
                     record_keyword('publish:%04d-%02d' % (d.year, d.month))
                     record_keyword('publish:%04d' % (d.year))
                     record_keyword('publish:%04d-%02d-%02d' % (d.year, d.month, d.day))
+                    if item.camera_model:
+                        record_keyword('camera:%s' % item.camera_model)
                 record_keywords()
         return data
 

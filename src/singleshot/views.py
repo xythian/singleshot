@@ -237,12 +237,6 @@ class ViewLoader(object):
 
 
 def init_orders():
-    def get_exif_date(img):
-        try:
-            return img.get_exif('Image DateTime')
-        except AttributeError:
-            return None
-
     def reverse(f):
         def _reverse(x, y):
             return -f(x, y)

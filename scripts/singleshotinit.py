@@ -78,7 +78,8 @@ CGI_TEMPLATE = """#!@python@
 
 from singleshot import sscgi
 
-sscgi.main(@mainargs@)
+# change show_exceptions to True to enable cgitb exceptions
+sscgi.main(show_exceptions=False, @mainargs@)
 """
 
 SUB_PATTERN = re.compile('@(?P<name>[^@]+)@')
@@ -171,6 +172,7 @@ def main():
 
     if pathparts:
         pathparts.reverse()
+        for part in pathparts: sys.path.insert(0, part)
     else:
         pathparts = []
 
@@ -193,7 +195,7 @@ def main():
         parser.error('--standalone and --modpython are not compatible :-(')
 
     if options.standalone:
-        if not unpack_root:
+        if unpack_root is None:
             parser.error("It doesn't look like I'm being run from the tarball unpack directory.  I don't know how to build the zip file.")
         dest = os.path.join(options.root, '.singleshot')
         if not os.path.exists(dest):
