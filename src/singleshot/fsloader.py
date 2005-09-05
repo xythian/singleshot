@@ -28,6 +28,8 @@ class ImageFSLoader(FSLoader):
     def handles(self, fileinfo):
         return self.store.processor.handles(fileinfo)
 
+    extensions = property(lambda self:self.store.processor.extensions)
+
     def load_path(self, path, fileinfo):
         processor = self.store.processor
         
@@ -189,20 +191,25 @@ class FilesystemLoader(ItemLoader):
                 for alias in item.aliases:
                     self._cache[alias] = item
         return item
-    
+
     
     def _load_path(self, path, finfo):
         for loader in self.loaders:
             if loader.handles(finfo):
                 return loader.load_path(path, finfo)
+        def both(exts):
+            while True:
+                n = exts.next()            
+                yield n
+                yield n.upper()
+            
         if not finfo.extension:
             xpath = finfo.path
-            for ext in ('.jpg','.JPG'):            
+            for ext in both(iter(self.imgloader.extensions)):
                 finfo = FileInfo(xpath + ext)
                 if finfo.exists:
-                    for loader in self.loaders:
-                        if loader.handles(finfo):
-                            return loader.load_path(path, finfo)        
+                    if self.imgloader.handles(finfo):
+                        return self.imgloader.load_path(path, finfo)        
         return None
 
 class ImageSize(FilesystemEntity):
@@ -443,8 +450,9 @@ class PickleCacheStore(object):
 
 
     def most_tags(self):
-        self.ready()        
-        return [(tag.name, tag) for tag in self.tags.values() if tag.count > 3 and ':' not in tag.name]
+        self.ready()
+        x = [(tag.name, tag) for tag in self.tags.values() if tag.count > 3 and ':' not in tag.name]
+        return x
 
     def recent_images(self, count=10):
         self.ready()        
@@ -503,6 +511,8 @@ class SingleshotLoader(ItemLoader):
                 def record_keywords():
                     def record_keyword(tag):
                         tag = self._data.prepare_tag(tag)
+                        if not tag:
+                            return
                         try:
                             data.tags[tag].add(itemid)
                         except KeyError:

@@ -40,6 +40,8 @@ class ImageProcessor(object):
     def handles(self, fileinfo):
         return fileinfo.isa('.jpg')
 
+    extensions = ('.jpg',)
+
     def load_metadata(self, target, fileinfo):
         header = JpegHeader(fileinfo.path)
         if header.iptc.title:
@@ -83,6 +85,19 @@ class ImageMagickProcessor(ImageProcessor):
             trace("ImageProcessor failed for %s -> %s", source, dest)
 
 class PILProcessor(ImageProcessor):
+    def handles(self, fileinfo):
+        return fileinfo.isa('.jpg', '.png', '.gif')
+
+    extensions = ('.jpg', '.png', '.gif')
+
+    def load_metadata(self, target, fileinfo):
+        if fileinfo.isa('.jpg'):
+            super(PILProcessor, self).load_metadata(target, fileinfo)
+            return
+        img = Image.open(fileinfo.path)
+        target.width, target.height = img.size
+        
+
 
     def execute(self, source=None, dest=None, size=None):
         height = size.height
