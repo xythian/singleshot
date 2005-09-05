@@ -1,21 +1,13 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns:tal="http://xml.zope.org/namespaces/tal"  
-      xmlns:metal="http://xml.zope.org/namespaces/metal"
-      metal:define-macro="page">
+      xmlns:metal="http://xml.zope.org/namespaces/metal">
   <head>
     <title tal:define-slot="pagetitle" tal:content="title">Page not found</title>
+  </head>
 <body>
-<div id="page">
-<div id="header" metal:define-slot="header"><h1 class="banner">We're
-So Sorry</h1></div>
-
-<div tal:content="title">Page not found</div>
-
-<div id="content">
+<h1 class="banner">Page not found</h1>
 
 There is no page available for <b tal:content="path">/path</b>.   You
 can go to <a tal:attributes="href config/url_prefix">the root album</a>.
 
-</div>
-<div id="footer"><span>&copy;2005</span></div></div>
 </body></html>

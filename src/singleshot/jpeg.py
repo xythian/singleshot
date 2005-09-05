@@ -1,9 +1,6 @@
 from singleshot.properties import *
 from singleshot.storage import FilesystemEntity
 from singleshot.xmp import XMPHeader, EmptyXMPHeader
-from singleshot.exif import Ratio
-
-#import EXIF
 
 import os
 import tempfile
@@ -12,6 +9,36 @@ from cStringIO import StringIO
 import re
 import time
 import mmap
+
+def gcd(a, b):
+   if b == 0:
+      return a
+   else:
+      return gcd(b, a % b)
+
+
+class Ratio(object):
+    def __init__(self, num, den):
+        self.num=num
+        self.den=den
+        self.reduce()
+
+    def __repr__(self):
+        if self.den == 1:
+            return str(self.num)
+        return '%d/%d' % (self.num, self.den)
+
+    def floatformat(self):
+        return '%.1f' % (float(self.num)/
+                         float(self.den))
+
+    def reduce(self):
+        div=gcd(self.num, self.den)
+        if div > 1:
+            self.num=self.num/div
+            self.den=self.den/div
+
+
 
 EXIFDT = re.compile(r'(?P<year>\d\d\d\d):(?P<month>\d\d):(?P<day>\d\d) (?P<hour>\d\d):(?P<minute>\d\d):(?P<second>\d\d)')
 
@@ -163,8 +190,12 @@ class JpegHeader(object):
         self.exposure.camera_model = data.get(0x110)
         self.exposure.capture_time = parse_exif_date(data.get(0x132))
         if exififd:
-            exif = self.decode_tags(body, xoffset+exififd, bytes_of, _unpack)
-            self.exposure.duration = exif.get(0x29a)
+            exif = self.decode_tags(body, xoffset+exififd, bytes_of, _unpack,
+                                    {0x829d : 1,
+                                     0x829A : 1,
+                                     0x920A : 1,
+                                     0x8827 :1}.get)
+            self.exposure.duration = exif.get(0x829a)
             self.exposure.aperture = exif.get(0x829d)
             self.exposure.focal = exif.get(0x920A)
             self.exposure.iso = exif.get(0x8827)
@@ -201,6 +232,7 @@ class JpegHeader(object):
                subhdr = file[offset:offset+4]
         finally:
             file.close()
+            os.close(fd)
 
     def _get_xmp(self):
         if not self.__xmp_parsed and self.__xmpbody:
@@ -234,17 +266,19 @@ class JpegHeader(object):
         ix = iter(data)        
         try:
             r = Ratio(ix.next(), ix.next())
-            r.reduce()
             yield r
         except StopIteration:
             pass
 
-    def decode_tags(self, body, offset, bytes_of, _unpack):
+    def decode_tags(self, body, offset, bytes_of, _unpack, want=lambda x:True):
         count = _unpack('H', body[offset:offset+2])[0]
         offset += 2
         result = {}
         for c in xrange(count):
             tag, typ, count, voffset = _unpack('HHII', body[offset:offset+12])
+            if not want(tag):
+                offset += 12
+                continue
             if typ == 1 and count < 4:
                 val = map(ord, body[offset+9:offset+9+count])
             elif typ == 1:
@@ -261,6 +295,8 @@ class JpegHeader(object):
                 val = voffset
             elif typ == 4 and count > 1:
                 val = _unpack(('I' * count), bytes_of(voffset, 4*count))
+            elif typ == 5 and count == 1:
+                val =Ratio(*_unpack(('II' * count), bytes_of(voffset, 8*count)))
             elif typ == 5:
                 val = tuple(self.ratiozip(_unpack(('II' * count), bytes_of(voffset, 8*count))))
                 if len(val) == 1:

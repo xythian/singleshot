@@ -140,18 +140,22 @@ class SingleshotConfig(ConfiguredEntity):
         else:
             return False
 
+def default_loader(store):
+    fl = FilesystemLoader(store)
+    ssl = SingleshotLoader(store, fl)
+    return ssl
+
 def create_store(root,
                  baseurl='/singleshot',
-                 template_root=None):
+                 template_root=None,
+                 loader=default_loader):
     from singleshot.views import ViewLoader
     from singleshot.fsloader import FilesystemLoader, SingleshotLoader
     from singleshot import imageprocessor
 
     store = Store(root, template_root=template_root)    
-    store.config = SingleshotConfig(store, baseurl=baseurl)
-    fl = FilesystemLoader(store)
-    ssl = SingleshotLoader(store, fl)
-    store.loader = ssl
+    store.config = SingleshotConfig(store, baseurl=baseurl)    
+    store.loader = loader(store)
     store.load_view = ViewLoader(store).load_view
     store.processor = imageprocessor.create(store)
     return store

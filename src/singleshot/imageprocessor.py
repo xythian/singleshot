@@ -59,9 +59,11 @@ class ImageProcessor(object):
         target.caption = header.iptc.caption
         target.capture_time = header.exposure.capture_time
         target.camera_model = header.exposure.camera_model
-        target.camera_mfg =header.exposure.camera_mfg
-        target.exposure_duration = header.exposure.duration
-        target.exposure_aperture = header.exposure.aperture
+        target.camera_mfg = header.exposure.camera_mfg
+        if header.exposure.duration:
+            target.exposure_duration = repr(header.exposure.duration)
+        if header.exposure.aperture:
+            target.exposure_aperture = 'f/' +header.exposure.aperture.floatformat()
         target.exposure_focal = header.exposure.focal
         target.exposure_iso = header.exposure.iso
         target.height = header.height

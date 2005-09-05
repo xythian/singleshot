@@ -24,6 +24,13 @@
 <div tal:condition="item/keywords">Keywords:
 <span tal:repeat="tag item/keywords"><a href="#" tal:attributes="href string:${ssroot}keyword/${tag}" tal:content="tag">Keyword</a> </span> </div>
 
+<span tal:content="item/camera_model">Camera</span> 
+<span tal:condition="item/exposure_focal" tal:content="string:${item/exposure_focal}mm">Camera</span> 
+<span tal:condition="item/exposure_duration"
+      tal:content="string:${item/exposure_duration}s">Exposure</span>
+<span tal:condition="item/exposure_aperture" 
+      tal:content="item/exposure_aperture">Exposure</span>
+<span tal:condition="item/exposure_iso" tal:content="string:ISO ${item/exposure_iso}">Exposure</span>
 </div>
 
 

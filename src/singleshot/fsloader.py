@@ -168,7 +168,7 @@ class FilesystemLoader(ItemLoader):
             fspath = path
             path = path[len(self.store.root):]
         elif not path:
-            path = '/'            
+            path = '/'
         finfo = FileInfo(self.store.root, path[1:])
         if self.config.ignore_path(finfo.path):
             return None
@@ -195,6 +195,14 @@ class FilesystemLoader(ItemLoader):
         for loader in self.loaders:
             if loader.handles(finfo):
                 return loader.load_path(path, finfo)
+        if not finfo.extension:
+            xpath = finfo.path
+            for ext in ('.jpg','.JPG'):            
+                finfo = FileInfo(xpath + ext)
+                if finfo.exists:
+                    for loader in self.loaders:
+                        if loader.handles(finfo):
+                            return loader.load_path(path, finfo)        
         return None
 
 class ImageSize(FilesystemEntity):
