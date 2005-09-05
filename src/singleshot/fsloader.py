@@ -1,6 +1,6 @@
 from singleshot.storage import FilesystemEntity, FileInfo
 from singleshot.ssconfig import read_config
-from singleshot.jpeg import JpegHeader, parse_exif_date, calculate_box
+from singleshot.jpeg import JpegHeader, calculate_box
 from singleshot.model import ContainerItem, ImageItem, MONTHS, DynamicContainerItem
 from singleshot import imageprocessor, pages
 import mmap

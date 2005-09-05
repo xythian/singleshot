@@ -15,7 +15,6 @@ from singleshot.properties import *
 HAVE_PIL = False
 try:
     import Image
-    import ExifTags
     import ImageEnhance    
     HAVE_PIL = True
 except ImportError:
@@ -40,17 +39,6 @@ class ImageProcessor(object):
 
     def handles(self, fileinfo):
         return fileinfo.isa('.jpg')
-
-    def load_exif(self, fileinfo):
-        file=open(fileinfo.path, 'rb')
-        try:
-            data = EXIF.process_file(file)
-        except:
-            # file unreadable
-            data = {}
-        file.close()
-        return data         
-
 
     def load_metadata(self, target, fileinfo):
         header = JpegHeader(fileinfo.path)
@@ -95,22 +83,7 @@ class ImageMagickProcessor(ImageProcessor):
             trace("ImageProcessor failed for %s -> %s", source, dest)
 
 class PILProcessor(ImageProcessor):
-    def load_exif(self, fileinfo):        
-        try:
-            data = Image.open(fileinfo.path)._getexif()
-        except:
-            return {}
-        if not data:
-            return {}
-        result = {}
-        # add more tags later
-        for tag in (36868, 36867):
-            try:                
-                result[ExifTags.TAGS[tag]] = data[tag]
-            except KeyError:
-                pass
-        return result
-    
+
     def execute(self, source=None, dest=None, size=None):
         height = size.height
         width = size.width    
@@ -125,7 +98,6 @@ class PILProcessor(ImageProcessor):
         image.save(dest, "JPEG")
 
 def create(store):
-#    return ImageMagickProcessor(store)
     try:
         import Image
         import ExifTags
