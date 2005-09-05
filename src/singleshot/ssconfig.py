@@ -1,8 +1,10 @@
 from ConfigParser import ConfigParser
-from properties import demand_property
-from singleshot.storage import FilesystemEntity
 import os
 import fnmatch
+
+from singleshot.storage import FilesystemEntity
+from singleshot.properties import demand_property
+
 
 def read_config(fspath, defaults):
     cfg = ConfigParser()
@@ -141,6 +143,8 @@ class SingleshotConfig(ConfiguredEntity):
             return False
 
 def default_loader(store):
+    from singleshot.fsloader import FilesystemLoader, SingleshotLoader
+    
     fl = FilesystemLoader(store)
     ssl = SingleshotLoader(store, fl)
     return ssl
@@ -150,7 +154,6 @@ def create_store(root,
                  template_root=None,
                  loader=default_loader):
     from singleshot.views import ViewLoader
-    from singleshot.fsloader import FilesystemLoader, SingleshotLoader
     from singleshot import imageprocessor
 
     store = Store(root, template_root=template_root)    
