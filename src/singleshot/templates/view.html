@@ -21,7 +21,7 @@
 
 <p tal:content="item/caption" tal:condition="item/caption">Caption</p>
 
-<div tal:condition="item/keywords">Keywords:
+<div tal:condition="item/keywords and data/keyword">Keywords:
 <span tal:repeat="tag item/keywords"><a href="#" tal:attributes="href string:${ssroot}keyword/${tag}" tal:content="tag">Keyword</a> </span> </div>
 
 <span tal:content="item/camera_model">Camera</span> 
