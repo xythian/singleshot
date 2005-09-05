@@ -34,8 +34,8 @@ class FileInfo(object):
     def _get_exists(self):
         return exists(self.path)
 
-    def isa(self, ext):
-        return self.extension.lower() == ext
+    def isa(self, *ext):
+        return self.extension.lower() in ext
 
     st_info = demand_property('st_info', _load_st_info)
     mtime = delegate_property('st_info', 'st_mtime')
