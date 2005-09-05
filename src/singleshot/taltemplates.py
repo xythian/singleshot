@@ -9,6 +9,8 @@ from simpletal.simpleTALUtils import TemplateCache, FastStringOutput
 
 from singleshot.properties import *
 
+from itertools import chain
+
 TEMPLATE_CACHE = TemplateCache()
 
 class ViewableObject(object):
@@ -64,43 +66,33 @@ class ViewableObject(object):
         request.send_headers()
         request.write(s)
 
-        
+def group_item(seq, n):
+    l = len(seq)
+    if not l:
+        return
+    groups = len(seq) / n
+    for group in xrange(groups):
+        begin = group * n
+        end = group * n + n
+        yield seq[begin:end]
+    if groups*n < l:
+        yield (seq[groups*n:] +  [None]*n)[:n]
 
 class ViewableContainerObject(ViewableObject):
     items = ()
     
     def itemsbyrows(self, path):
         n = int(path)
-        hasmore = [True]
-        it = iter(self.items)
-        def row(g, i):
-            for x in xrange(i):
-                try:
-                    yield g.next()
-                except StopIteration:
-                    hasmore[0] = False
-                    yield None
-        while hasmore[0]:
-            yield row(it, n)
+        return group_item(self.items, n)
 
     def itemsbycolumns(self, path):
         n = int(path)
-        hasmore = [True]
         l = len(self.items)
         n1 = l / n
         if n1 * n < l:
             n1 += 1
         n = n1
-        it = iter(self.items)
-        def row(g, i):
-            for x in xrange(i):
-                try:
-                    yield g.next()
-                except StopIteration:
-                    hasmore[0] = False
-                    yield None
-        while hasmore[0]:
-            yield row(it, n)
+        return group_item(self.items, n)
         
 
     def create_context(self):
@@ -109,3 +101,8 @@ class ViewableContainerObject(ViewableObject):
         context.addGlobal("itemsbycolumns", PathFunctionVariable(self.itemsbycolumns))        
         return context
 
+
+if __name__ == '__main__':
+    for row in group_item([1,2,3], 2):
+        for item in row:
+            print item
