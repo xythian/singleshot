@@ -4,22 +4,23 @@ import sys
 import re
 import struct
 import shutil
-import process
 import imp
+import logging
 
+LOG = logging.getLogger('singleshot')
 
 from singleshot.jpeg import JpegHeader, parse_exif_date
-from singleshot.storage import FilesystemEntity
-from singleshot.properties import *
+from singleshot.storage import FilesystemEntity, FileInfo
 
-HAVE_PIL = False
+
 try:
     import Image
     import ImageEnhance    
-    HAVE_PIL = True
 except ImportError:
     # no pil, I guess
     pass
+
+
 
 
 #
@@ -69,20 +70,20 @@ class ImageMagickProcessor(ImageProcessor):
                 dest=None,
                 size=None,
                 sharpen="0.9x80"):
+        LOG.info('IM Generating image %s -> %s (%dx%d)',
+                 source,
+                 dest,
+                 size.width,
+                 size.height)
         cmd = 'convert'
         size = size.size
         sizespec = '%sx%s' % (size, size)
         args = [cmd, '-size', sizespec, '-scale', sizespec, '-unsharp', sharpen, source, dest]
         
-        trace('Running: "%s"', '" "'.join(args))
-        p = process.ProcessProxy(cmd=args,
-                                 cwd=self.store.image_root,
-                                 env=self.config.getInvokeEnvironment(),
-                                 stderr=sys.stderr,
-                                 stdout=sys.stderr)
-        r = p.wait()
+        LOG.debug('ImageMagickProcessor: "%s"', '" "'.join(args))
+        r = os.spawnvpe(os.P_WAIT, cmd, args, self.config.getInvokeEnvironment())
         if r != 0 or not os.path.exists(dest):
-            trace("ImageProcessor failed for %s -> %s", source, dest)
+            LOG.debug("ImageProcessor failed for %s -> %s", source, dest)
 
 class PILProcessor(ImageProcessor):
     def handles(self, fileinfo):
@@ -100,6 +101,11 @@ class PILProcessor(ImageProcessor):
 
 
     def execute(self, source=None, dest=None, size=None):
+        LOG.info('PIL Generating image %s -> %s (%dx%d)',
+                  source,
+                  dest,
+                  size.width,
+                  size.height)
         height = size.height
         width = size.width    
         image = Image.open(source)
@@ -112,10 +118,47 @@ class PILProcessor(ImageProcessor):
         image = enhancer.enhance(1.6)
         image.save(dest, "JPEG")
 
+class CompositeProcesser(object):
+    def __init__(self, processors):
+        self.processors = processors
+        mapping = {}
+        for processor in processors:
+            for ext in processor.extensions:
+                if not mapping.has_key(ext):
+                    mapping[ext] = processor
+        self.mapping = mapping
+        self.extensions = mapping.keys()
+            
+    def handles(self, fileinfo):
+        return fileinfo.isa(*self.extensions)
+
+    def _for(self, fileinfo):
+        return self.mapping[fileinfo.extension.lower()]
+
+    def load_metadata(self, target, fileinfo):
+        self._for(fileinfo).load_metadata(target,
+                                          fileinfo)
+
+    def execute(self, *args, **kwargs):
+        fileinfo = FileInfo(kwargs['source'])
+        self._for(fileinfo).execute(*args, **kwargs)
+
 def create(store):
-    try:
-        import Image
-        import ExifTags
-        return PILProcessor(store)    
-    except:
-        return ImageMagickProcessor(store)
+    im = store.config.config.getboolean('images', 'imagemagick')
+    pil = store.config.config.getboolean('images', 'pil')
+    processors = []
+    if im:
+        processors.append(ImageMagickProcessor(store))
+    if pil:
+        try:
+            import Image
+            processors.append(PILProcessor(store))
+        except ImportError:
+            pass
+    if not processors:
+        LOG.error('No available image processors')
+        return CompositeProcesser([])
+    elif len(processors) == 1:
+        return processors[0]
+    else:
+        return CompositeProcesser(processors)

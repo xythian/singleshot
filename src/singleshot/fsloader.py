@@ -13,7 +13,11 @@ import cPickle as pickle
 #import pickle
 import sys
 
+
 import fnmatch
+
+import logging
+LOG = logging.getLogger('singleshot')
 
 class FSLoader(object):
     def __init__(self, store):
@@ -379,15 +383,17 @@ class PickleCacheStore(object):
         finally:
             f.close()
 
-    def ready(self):
+    def ready(self):        
+        n = time.time()
         if not self.uptodate():
             itemdata = self._load_itemdata()
             self._store(itemdata)
             self._prepare_data(itemdata)
+            LOG.info('Initialized itemcache %.2fms', (time.time() - n)*1000.)
         elif not self._data:
             self._read()
             self.ready()
-                
+            LOG.info('Loaded itemcache %.2fms', (time.time() - n)*1000.)                
 
     def _prepare_data(self, data):
         self._directories = []

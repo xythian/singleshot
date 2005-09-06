@@ -1,6 +1,8 @@
 from ConfigParser import ConfigParser
 import os
 import fnmatch
+import logging
+import sys
 
 from singleshot.storage import FilesystemEntity
 from singleshot.properties import demand_property
@@ -83,6 +85,8 @@ class Store(object):
 
 class SingleshotConfig(ConfiguredEntity):
     defaults = {    'paths' : { 'invokePath' : '/bin:/usr/bin' },
+                    'images' : { 'imagemagick' : 'True',
+                                 'pil' : 'True' },
                     'feed' : { 'title' : '',
                               'description' : '',
                                'recentcount' : '10'
@@ -149,10 +153,29 @@ def default_loader(store):
     ssl = SingleshotLoader(store, fl)
     return ssl
 
+def disable_logger(name):
+    lg = logging.getLogger(name)
+    lg.setLevel(logging.CRITICAL)
+
+def default_logging(log_level):
+    hdlr = logging.StreamHandler()
+    rl = logging.getLogger()
+    rl.addHandler(hdlr)
+    fmt = logging.Formatter('[singleshot/%(asctime)s/%(levelname)s] %(message)s')
+    hdlr.setFormatter(fmt)
+    rl.setLevel(log_level)
+    disable_logger('singleshot.trace')
+    disable_logger('simpleTAL')
+    logging.getLogger('simpleTAL').propagate = False
+
+
 def create_store(root,
                  baseurl='/singleshot',
                  template_root=None,
+                 configure_logging=default_logging,
+                 log_level=logging.WARNING,
                  loader=default_loader):
+    configure_logging(log_level)
     from singleshot.views import ViewLoader
     from singleshot import imageprocessor
 

@@ -1,5 +1,8 @@
 import sys
 from ConfigParser import ConfigParser
+import logging
+
+LOG = logging.getLogger('singleshot')
 
 class AutoPropertyMeta(type):
     def process_properties(cls, name, bases, dict):
@@ -59,16 +62,11 @@ class ViewMeta(AutoPropertyMeta):
             pass
     process_properties = classmethod(process_properties)    
 
+LOG_TRACE = logging.getLogger('singleshot.trace')
+
 def trace(v, *args):
-    msg = v
-    if args:
-        msg = v % args
-    print >>sys.stderr, 'Trace: ', msg
-
-def no_trace(v, *args):
-    pass
-
-trace = no_trace
+    if LOG_TRACE.isEnabledFor(logging.DEBUG):
+        LOG_TRACE.info(v, *args)
 
 def wrap_printexc(func):
     def wrap_func(*args, **kw):

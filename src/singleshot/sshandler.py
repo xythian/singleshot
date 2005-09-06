@@ -4,6 +4,8 @@ from singleshot.ssconfig import SecurityError
 from time import time
 import mmap
 import os
+import logging
+LOG = logging.getLogger('singleshot')
 
 class EndRequestException:
     def __init__(self, reason):
@@ -35,8 +37,11 @@ class Request(object):
         data.close()
         del data
 
-    def log(self, message):
-        pass
+
+    def log(self, message, *args, **kwargs):
+        if LOG.isEnabledFor(logging.INFO):
+            LOG.info('[%s] ' + message,self.path_info, *args, **kwargs)
+
 
 def handle(request):
     n = time()
@@ -63,4 +68,4 @@ def handle(request):
         request.write('Exit with security error: ' + msg)
     except EndRequestException:
         pass
-    request.log('Render %s complete %.2fms' % (path, (time() - n)*1000.))    
+    request.log('Render complete %.2fms', (time() - n)*1000.)

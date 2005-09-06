@@ -12,6 +12,7 @@ import cgi
 import cgitb
 import traceback
 import time
+import logging
 
 from singleshot import ssconfig, sshandler
 from BaseHTTPServer import BaseHTTPRequestHandler
@@ -19,6 +20,7 @@ from datetime import datetime
 
 responses = BaseHTTPRequestHandler.responses
 
+LOG = logging.getLogger('singleshot')
 
 
 class CGIRequest(sshandler.Request):
@@ -79,9 +81,6 @@ class CGIRequest(sshandler.Request):
         actionmodule = getattr(actionmodule, 'action_' + action)
         return actionmodule
 
-    def log(self, message):
-        print >>sys.stderr, '[singleshot:%s]' % str(datetime.now()), message
-
 def exception_handler(etype, evalue, etb):
     out = sys.stdout
     out.write("""<!--: spam
@@ -94,8 +93,7 @@ An error has occured during processing.  :-(""")
     s = "[singleshot exception: %s]" % str(now)
     s += cgitb.text((etype, evalue, etb))
     s += "[end singleshot exception]\n"
-    sys.stderr.write(s)
-    sys.stderr.flush()
+    LOG.error(s)
 
 def main(show_exceptions=False,
          root=None, path=os.environ['PATH_INFO'][1:], **config):
@@ -103,7 +101,6 @@ def main(show_exceptions=False,
         cgitb.enable()
     else:
         sys.excepthook = exception_handler
-    
     store = ssconfig.create_store(root, **config)
     request = CGIRequest(store, path)
     sshandler.handle(request)

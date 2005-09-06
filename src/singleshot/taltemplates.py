@@ -101,8 +101,3 @@ class ViewableContainerObject(ViewableObject):
         context.addGlobal("itemsbycolumns", PathFunctionVariable(self.itemsbycolumns))        
         return context
 
-
-if __name__ == '__main__':
-    for row in group_item([1,2,3], 2):
-        for item in row:
-            print item
