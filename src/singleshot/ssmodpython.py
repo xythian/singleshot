@@ -1,6 +1,7 @@
 from singleshot.properties import AutoPropertyMeta
 from singleshot import sshandler
 from mod_python import util, apache
+import logging
 
 import os
 import mmap
@@ -59,8 +60,6 @@ class ModPythonRequest(sshandler.Request):
     def find_action(self, action):
         return apache.import_module('singleshot.action_' + action)        
 
-    def log(self, message):
-        apache.log_error(message)
 
 store = None
 

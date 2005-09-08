@@ -165,8 +165,11 @@ def main():
         parser.error("Please specify both url and root")
 
 #    cgipath = 'singleshot/' + options.cginame
-    cgipath = options.cginame    
+
     cginame = options.cginame
+    if options.modpython:
+        cginame = 'singleshot.py'
+    cgipath = cginame
 
     pathparts = options.path
 
