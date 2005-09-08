@@ -6,6 +6,7 @@ import re
 import os
 from stat import *
 from glob import glob
+from urlparse import urlsplit
 
 #
 # A script to initialize a singleshot image root
@@ -47,6 +48,8 @@ RewriteRule ^static/.*.(jpg|css|js|gif)$ - [L]
 RewriteRule ^static/(.*) @cgi@/view/$1 [L]
 
 RewriteRule ^@cgi@.* - [L]
+
+
 
 # Prevent URIs that arrive directly from view/ from being rewritten
 # below to a CGI which will generate the resized image.  Only allow
@@ -164,7 +167,12 @@ def main():
     if not options.root or not options.url:
         parser.error("Please specify both url and root")
 
-#    cgipath = 'singleshot/' + options.cginame
+    scheme, network, path, query, fragment = urlsplit(options.url)
+
+    if scheme or network or query or fragment:
+        print >>sys.stderr, 'Using %s for the path prefix.' % path
+        options.url = path
+        
 
     cginame = options.cginame
     if options.modpython:
