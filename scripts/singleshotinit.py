@@ -85,6 +85,16 @@ from singleshot import sscgi
 sscgi.main(show_exceptions=False, @mainargs@)
 """
 
+FCGI_TEMPLATE = """#!@python@
+
+@pathhack@
+
+from singleshot import ssfcgi
+
+# change show_exceptions to True to enable cgitb exceptions
+ssfcgi.main(show_exceptions=False, @mainargs@)
+"""
+
 SUB_PATTERN = re.compile('@(?P<name>[^@]+)@')
 
 def write_template(subs, template, force, path):
@@ -148,15 +158,15 @@ def main():
     parser.add_option('--cginame',
                       type="string",
                       dest="cginame",
-                      default="singleshot.cgi",
+                      default=".singleshot.cgi",
                       help="Sets the name of the singleshot CGI script")
     parser.add_option('--standalone',
                       action='store_true',
                       help="Package up the singleshot and support libraries and put them in the web root as standalone libraries (this only works when run from the unpacked tarball.")
-    parser.add_option('--modpython',
-                      action='store_true',
-                      default=False,
-                      help="Includes the mod_python directives in .htaccess")
+    parser.add_option('--mode',
+                      action='store',
+                      default='cgi',
+                      help='Select the way Singleshot interfaces with the web server: cgi, fcgi, or modpython')
     parser.add_option("--force",
                       action="store_true",
                       default=False,
@@ -172,11 +182,21 @@ def main():
     if scheme or network or query or fragment:
         print >>sys.stderr, 'Using %s for the path prefix.' % path
         options.url = path
-        
 
-    cginame = options.cginame
-    if options.modpython:
-        cginame = 'singleshot.py'
+    if options.mode == 'cgi':
+        cginame = options.cginame
+        cgitemplate = CGI_TEMPLATE
+        httemplate = HTACCESS_TEMPLATE
+    elif options.mode == 'fcgi':
+        cginame = '.singleshot.fcgi'
+        cgitemplate = FCGI_TEMPLATE
+        httemplate = HTACCESS_TEMPLATE
+    elif options.mode == 'modpython':
+        cginame = '.singleshot.py'
+        httemplate = MODPYTHON_CLAUSE + HTACCESS_TEMPLATE
+        cgitemplate = CGI_TEMPLATE
+    else:
+        parser.error('Please select one of cgi, fcgi, or modpython for --mode.')        
     cgipath = cginame
 
     pathparts = options.path
@@ -258,15 +278,12 @@ def main():
             'pathhack' : pathhack,
             'mainargs' : ','.join(mainargs)}
 
-    httmpl = HTACCESS_TEMPLATE
-    if options.modpython:
-        httmpl = MODPYTHON_CLAUSE + httmpl
-    httmpl = "### begin singleshot\n" + httmpl + "### end singleshot"
-    write_template(subs, httmpl, options.force,
+    httemplate = "### begin singleshot\n" + httemplate + "### end singleshot"
+    write_template(subs, httemplate, options.force,
                    os.path.join(options.root, '.htaccess'))
 
     cgi = os.path.join(options.root, cgipath)
-    write_template(subs, CGI_TEMPLATE, options.force,
+    write_template(subs, cgitemplate, options.force,
                    cgi)
 
 
