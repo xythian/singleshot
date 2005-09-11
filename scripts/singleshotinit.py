@@ -195,6 +195,8 @@ def main():
         cginame = '.singleshot.py'
         httemplate = MODPYTHON_CLAUSE + HTACCESS_TEMPLATE
         cgitemplate = CGI_TEMPLATE
+        if options.standalone:
+            parser.error('--standalone and --mode modpython are not compatible :-(')
     else:
         parser.error('Please select one of cgi, fcgi, or modpython for --mode.')        
     cgipath = cginame
@@ -222,8 +224,7 @@ def main():
 
     mainargs = ['baseurl=%s' % repr(options.url),
                 'root=%s' % repr(os.path.abspath(options.root))]
-    if options.standalone and options.modpython:
-        parser.error('--standalone and --modpython are not compatible :-(')
+
 
     if options.standalone:
         if unpack_root is None:
