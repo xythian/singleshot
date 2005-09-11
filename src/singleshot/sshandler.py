@@ -30,12 +30,12 @@ class Request(object):
     def respond_file(self, path, ct):
         fd = os.open(path, os.O_RDONLY)
         l = os.fstat(fd).st_size
+        LOG.debug('respond_file(%s[%d], %s)', path, l, ct)
         data = mmap.mmap(fd, l, access=mmap.ACCESS_READ)
         self.content_type = ct
         self.content_length = l
         self.write(data)
-        data.close()
-        del data
+
 
 
     def log(self, message, *args, **kwargs):
