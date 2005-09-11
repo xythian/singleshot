@@ -9,6 +9,7 @@ from cStringIO import StringIO
 import re
 import time
 import mmap
+from struct import pack, unpack, calcsize
 
 def gcd(a, b):
    if b == 0:
@@ -41,9 +42,6 @@ class Ratio(object):
             self.den=self.den/div
 
 
-
-EXIFDT = re.compile(r'(?P<year>\d\d\d\d):(?P<month>\d\d):(?P<day>\d\d) (?P<hour>\d\d):(?P<minute>\d\d):(?P<second>\d\d)')
-
 def iptc_property(tuple, typ=None):
     def _delegate_get(self):
         result = self._get_property(tuple)
@@ -60,14 +58,14 @@ class IptcHeader(object):
     def __init__(self, iptckeys):
         data = {}
         for tag, val in iptckeys:
-            try:
-                existing = data[tag]
-                if isinstance(existing, str):
-                    existing = [existing]
-                    data[tag] = existing
-                existing.append(val)
-            except KeyError:
-                data[tag] = val
+           try:
+              existing = data[tag]
+              if isinstance(existing, str):
+                 existing = [existing]
+                 data[tag] = existing
+              existing.append(val)
+           except KeyError:
+              data[tag] = val
         self.info = data
 
     def _get_property(self, tuple):
@@ -81,6 +79,13 @@ class IptcHeader(object):
     headline = iptc_property((2, 105))
     keywords = iptc_property((2, 25), tuple)
     title = iptc_property((2, 05))
+    date = iptc_property((2, 55))
+    time = iptc_property((2, 60))
+
+    def _get_datetime(self):
+       return parse_iso8601(d=self.date, t=self.time)
+
+    datetime = property(_get_datetime)
 
 class DummyIptc(object):
     caption = ''
@@ -88,18 +93,8 @@ class DummyIptc(object):
     headline = ''
     keywords = ()
     title = ''
-
-def parse_exif_date(dt):
-    dt = str(dt)
-    m = EXIFDT.match(dt)
-    if m:
-        year, month, day, hour, minute, second = m.groups()
-    else:
-        return 0.0
-    [year, month, day, hour, minute, second] = map(int, [year, month, day, hour, minute, second])
-    t = time.mktime((year, month, day, hour, minute, second, -1, -1, 0))
-    return t
-    
+    datetime = None
+    info = {}
 
 def calculate_box(size, width, height):
     if height > width:
@@ -116,8 +111,6 @@ def calculate_box(size, width, height):
 
 def decode_2byte(bytes):
     return ord(bytes[0]) * 256 + ord(bytes[1])
-
-from struct import pack, unpack, calcsize
 
 
 class ExposureMetadata(object):
@@ -139,8 +132,6 @@ class JpegHeader(object):
         self.path = path
         self.exposure = ExposureMetadata()
         self.load(path)
-        
-
 
     def handle_sof(self, body, offset, length):
         self.height, self.width = unpack('>HH', body[offset+1:offset+5])
@@ -152,23 +143,31 @@ class JpegHeader(object):
         self.__xmpbody = body[offset:offset+length]
 
     def handle_photoshop(self, body, offset, length):
+        endmark = offset+length
         if body[offset:offset+14] != 'Photoshop 3.0\x00':
             return
         offset += 14
-        while body[offset:offset+4] == '8BIM':        
+        while body[offset:offset+4] == '8BIM' and offset < endmark:   
             offset += 4
             code, namel = unpack('>HB', body[offset:offset+3])
             offset += 3
             offset += namel
-            if offset & 1:
-                offset += 1
             size = unpack('>I', body[offset:offset+4])[0]
             offset += 4
-            if code == 0x404:
-                self.iptc = IptcHeader(self.iptc_tags(offset, body, offset+size))
-            offset += size
             if offset & 1:
-                offset += 1
+               offset += 1
+            if code == 0x404:
+               if size:
+                  endmark = offset+size
+               else:
+                  offset += 1
+               self.iptc = IptcHeader(self.iptc_tags(offset, body, endmark))
+            if size:
+               offset += size
+               if offset & 1:
+                  offset += 1             
+            else:
+               offset = endmark
 
 
     def handle_exif(self, body, soffset, l):
@@ -190,7 +189,7 @@ class JpegHeader(object):
             pass
         self.exposure.camera_mfg = data.get(0x10f)
         self.exposure.camera_model = data.get(0x110)
-        self.exposure.capture_time = parse_exif_date(data.get(0x132))
+        self.exposure.capture_time = parse_exif_datetime(data.get(0x132))
         if exififd:
             exif = self.decode_tags(body, xoffset+exififd, bytes_of, _unpack,
                                     {0x829d : 1,
@@ -225,11 +224,13 @@ class JpegHeader(object):
                ff, type, length = unpack('>BBH', subhdr)
                offset += 4
                length -= 2
+               callback = None
                try:
                    callback = callbacks[type]
-                   callback(file, offset, length)
                except KeyError:
                    pass
+               if callback:
+                  callback(file, offset, length)
                offset += length              
                subhdr = file[offset:offset+4]
         finally:

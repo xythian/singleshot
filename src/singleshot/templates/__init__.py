@@ -75,7 +75,9 @@ margin-left: 4em;  margin-right: 4em; }
 <div id="page">
 <div id="header">Singleshot: <ul class="navlinks">
 <li><a tal:attributes="href ssroot/">Home</a></li>
+<li tal:condition="data/keyword"/><a tal:attributes="href ssroot/recent/">recent</a></li>
 <li tal:condition="data/keyword"/><a tal:attributes="href ssroot/keyword/">keywords</a></li>
+<li tal:condition="data/bydate"/><a tal:attributes="href ssroot/bydate/">by date</a></li>
 </ul>
 </div>
 

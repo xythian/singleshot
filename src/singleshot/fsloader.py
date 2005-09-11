@@ -5,6 +5,7 @@ from singleshot.model import ContainerItem, ImageItem, MONTHS, DynamicContainerI
 from singleshot import imageprocessor, pages
 import mmap
 
+from singleshot.properties import dtfromtimestamp
 import time
 import os
 from datetime import datetime
@@ -53,6 +54,7 @@ class ImageFSLoader(FSLoader):
                 img.publish_time = t                            
             else:
                 img.publish_time = fileinfo.mtime
+            img.publish_time = dtfromtimestamp(img.publish_time)
         if not img.title.strip():
             img.title = img.filename
         rootzor = fileinfo.dirname[len(self.store.root)+1:]
@@ -357,11 +359,10 @@ class PickleCacheStore(object):
     def uptodate(self):
         n = time.time()
         path = self._cachepath
-        if self._directories and (n - self.__uptodatecheck) < 10.:
+        if (n - self.__uptodatecheck) < 10.:
             return True
         try:
-            if self._directories:
-                self.__uptodatecheck = n            
+            self.__uptodatecheck = n
             t = os.stat(path).st_mtime
             outofdate = [item for item in self._directories if os.stat(item).st_mtime > t]
             return not bool(outofdate)
@@ -378,23 +379,31 @@ class PickleCacheStore(object):
         f.close()
 
     def _read(self):
+        n = time.time()
         f = open(self._cachepath, 'r')
         try:
             self._prepare_data(pickle.load(f))
         finally:
             f.close()
+        LOG.info('Loaded itemcache %.2fms', (time.time() - n)*1000.)                
+    def _initcache(self):
+        n = time.time()
+        itemdata = self._load_itemdata()
+        self._store(itemdata)
+        self._prepare_data(itemdata)
+        self.__uptodatecheck = time.time()        
+        LOG.info('Initialized itemcache %.2fms', (time.time() - n)*1000.)
 
     def ready(self):        
-        n = time.time()
+        if not self._data:
+            try:
+                self._read()
+            except IOError:
+                pass
+            if not self._data:
+                self._initcache()
         if not self.uptodate():
-            itemdata = self._load_itemdata()
-            self._store(itemdata)
-            self._prepare_data(itemdata)
-            LOG.info('Initialized itemcache %.2fms', (time.time() - n)*1000.)
-        elif not self._data:
-            self._read()
-            self.ready()
-            LOG.info('Loaded itemcache %.2fms', (time.time() - n)*1000.)                
+            self._initcache()
 
     def _prepare_data(self, data):
         self._directories = []
@@ -528,8 +537,7 @@ class SingleshotLoader(ItemLoader):
                             data.tags[tag] = t
                     for tag in item.keywords:
                         record_keyword(tag)
-                    pt = item.publish_time
-                    d = datetime.fromtimestamp(pt)
+                    d = item.publish_time
                     try:
                         yearrecord = data._years[d.year]
                     except KeyError:

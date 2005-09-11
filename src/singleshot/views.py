@@ -3,6 +3,7 @@ from singleshot.properties import ViewMeta
 
 import time
 import os
+import sys
 from singleshot.model import Item, ImageItem, ContainerItem
 from singleshot.taltemplates import ViewableObject, ViewableContainerObject, PathFunctionVariable
 
@@ -194,8 +195,6 @@ class ContainerView(ItemView, ViewableContainerObject):
                 if child.image:
                     return child.image
             return None
-
-import sys
 
 class ViewLoader(object):
     def __init__(self, store):
