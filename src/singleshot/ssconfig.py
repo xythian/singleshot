@@ -157,7 +157,7 @@ def disable_logger(name):
     lg = logging.getLogger(name)
     lg.setLevel(logging.CRITICAL)
 
-def default_logging(log_level):
+def default_logging(root, log_level):
     hdlr = logging.StreamHandler()
     rl = logging.getLogger()
     rl.addHandler(hdlr)
@@ -175,7 +175,7 @@ def create_store(root,
                  configure_logging=default_logging,
                  log_level=logging.WARNING,
                  loader=default_loader):
-    configure_logging(log_level)
+    configure_logging(root, log_level)
     from singleshot.views import ViewLoader
     from singleshot import imageprocessor
 
