@@ -1,11 +1,6 @@
 from singleshot.errors import return_404
-
 import sys
 import os
-import fnmatch
-import re
-import shutil
-
 
 def act(path, request):
     size = request.getfirst('size')
