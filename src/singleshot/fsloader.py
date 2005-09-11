@@ -268,6 +268,7 @@ class ImageSize(FilesystemEntity):
         self.store.processor.execute(source=self.image.rawimagepath,
                                      dest=self.path,
                                      size=self)
+
     def expire(self):
         if self.exists:    
             os.remove(self.path)
@@ -356,7 +357,7 @@ class PickleCacheStore(object):
     def uptodate(self):
         n = time.time()
         path = self._cachepath
-        if self._directories and (n - self.__uptodatecheck) < 300.:
+        if self._directories and (n - self.__uptodatecheck) < 10.:
             return True
         try:
             if self._directories:
