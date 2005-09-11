@@ -13,7 +13,9 @@ def all_templates():
     return __templates.items()
     mydir, myname = os.path.split(__file__)
 
-__templates = {'page.html' : """<macros>
+__templates = {'404.html' : """<html><head><title>Not Found</title></head><body><h1>Not found</h1></body></html>""",
+
+'page.html' : """<macros>
 <html xmlns:tal="http://xml.zope.org/namespaces/tal"  
       xmlns:metal="http://xml.zope.org/namespaces/metal"
       metal:define-macro="page">
