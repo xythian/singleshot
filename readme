@@ -31,15 +31,14 @@ You will need the following software installed on your web server
 to install Singleshot.
 
    * Apache http://www.apache.org/ with mod_rewrite
-   * Python 2.2+ http://www.python.org/
+   * Python 2.3+ http://www.python.org/
    * ImageMagick http://www.imagemagick.org
-   * libjpeg http://www.ijg.org/ (for edit mode only)
 
 Singleshot relies on setting mod_rewrite directives in .htaccess.
 This facility needs to be enabled on the web server.
 
-You will also need an appropriate unpacking tool (unzip or
-tar/gunzip) to unpack the Singleshot archive.
+You will also need an appropriate unpacking tool to unpack the
+Singleshot archive.
 
 Definitions
 -----------
@@ -48,10 +47,6 @@ album root
     The directory that will become the root album of your new
 Singleshot installation. Apache needs to be configured to serve this
 directory.
-
-singleshot directory
-    The directory named "singleshot" that contains all of the scripts
-and templates used by singleshot.
 
 .htaccess
     File with directives to Apache to set up permissions, rewrite
@@ -65,49 +60,26 @@ Instructions
 
 1. Download and unpack Singleshot.
 
-2. Copy the "singleshot" directory in the archive to your album root.
+2. If you want Singleshot installed with the other Python libraries in
+site-packages, run python setup.py install.  Otherwise, skip this
+step.
 
-3. If your platform doesn't have /usr/bin/env (this is a common part
-of the operating system) you will need to edit resize.py and
-singleshot.py in the singleshot directory to have the correct path to
-python 2.1 or later. Change the first line (the one that starts with
-#!) to be something like /usr/local/bin/python2.2
+3. To set up a new album root using Singleshot, use the singleshotinit.py script.   It's in the scripts/ directory of the unpacked SIngleshot distribution, or with the other Python-library-installed scripts if you installed Singleshot into site-packages.
 
-4. Copy the "root-htaccess" file to ".htaccess" in your album root.
+4. Run singleshotinit.py -h to see a list of the command line options.   Generally, you'll want either the --standalone install.  If you installed Singleshot in a place not normally on sys.path (e.g. by using the --home option to setup.py install), you'll need to either put that on PYTHONPATH before running singleshotinit or tell singleshot init about it using --path.
 
-5. Make an empty directory named "view" in the album root
-directory. Ensure this directory is writable by the singleshot CGI
-script. If the CGI script is running under suEXEC, this should already
-be true since it will be running as your user. If not, the view
-directory may need to be world or group writable by the web server
-process.
+For example, suppose I wanted to get Singleshot running in my personal web directory ~/public_html/photos which will show up on my web server as /~fox/photos/ and I didn't want to install it in site-packages.
 
-   6. Update the root .htaccess file's RewriteBase to reflect the URL
-for that directory.
+I'd unpack Singleshot's archive, cd into the directory, and run
 
-7. Create a _singleshot.cfg in the album root similar to the following.
+./scripts/singleshotinit.py --root ~/public_html/photos --url /~fox/photos/ --standalone
 
-[singleshot]
-url_prefix=/pics/          ; url for the album root
-
-[paths]
-imagemagick=/usr/local/bin ; path to directory with ImageMagick binaries
-libjpegbin=/usr/local/bin  ; path to directory with libjpeg binaries
-
-
-8. Fill your new albums with images. You can put them in the root or
-in subdirectories. Do not use filenames with - (dash) in
-them. Singleshot uses -size suffixes internally and will not be happy
-if your image names have similar components.
-
-Other configurable things
+Configurable things
 -------------------------
 
-_singleshot.cfg can also have (and default to the values below):
+Where ALBUMROOT is where you put your album root (--root above):
 
-[templates]
-view=view.tmpl               ; global default view (image file) template
-album=album.tmpl             ; global default album (directory) template
+ALBUMROOT/_singleshot.cfg can also have (and default to the values below):
 
 [imagesizes]
 mini=40
@@ -115,19 +87,14 @@ thumb=200
 view=600
 large=1200
 
-[edit]
-password = singleshot
-enabled = false              ; this must be 'true' to enable edit mode
-
-The templates section is pretty self-explanatory.
-The imagesizes section is very important:  it limits what sizes of images can be requested
-from your album originals.  With the above configuration, downloads are limited to a max of
-40, 200, 600, or 1200 pixels on a side. (That is, any picture downloaded will be scaled down from
-the original size to one of the appropriate sizes)  In a template, referring to a size by
-number means 'show me that size or nothing', but referring to a size by name means 'show me
-a permitted size no larger than the one I asked for'.
-
-
+The imagesizes section is very important: it limits what sizes of
+images can be requested from your album originals.  With the above
+configuration, downloads are limited to a max of 40, 200, 600, or 1200
+pixels on a side. (That is, any picture downloaded will be scaled down
+from the original size to one of the appropriate sizes) In a template,
+referring to a size by number means 'show me that size or nothing',
+but referring to a size by name means 'show me a permitted size no
+larger than the one I asked for'.
 
 _album.cfg in every directory can have:
 
@@ -138,9 +105,5 @@ _album.cfg in every directory can have:
     order=dir,title,-mtime   ; sort order for display.  Valid orders are:
                              ;   title, dir, mtime, exifdate, name, href
                              ;  prepending '-' sorts in descending order instead of ascending 
-
-    [templates]
-    album=bar.tmpl  # uses bar.tmpl (in the template directory) as the album (directory) template
-    view=baz.tmpl   # uses baz.tmpl (in the template directory) as the view (image file) template
 
 
