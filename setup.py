@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from distutils.core import setup
 
 setup(name = 'singleshot', version="2.0.0a1",
