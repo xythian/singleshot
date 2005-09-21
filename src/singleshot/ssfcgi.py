@@ -13,13 +13,14 @@ from BaseHTTPServer import BaseHTTPRequestHandler
 from datetime import datetime
 
 from singleshot.fastcgi import Server, Connection, DataPromise
+from singleshot.errors import return_404
 from ssconfig import disable_logger
 from singleshot import sshandler
 import signal
 
 QUIT = False
 
-def give_up():
+def give_up(*args, **kwargsx):
     asyncore.close_all()
     QUIT = True
 
@@ -30,14 +31,6 @@ signal.signal(signal.SIGTERM, give_up)
 responses = BaseHTTPRequestHandler.responses
 
 LOG = logging.getLogger('singleshot')
-
-def chunker(f, size=4196):
-    data = f.read(size)
-    while data:
-        yield data
-        data = f.read(size)
-    f.close()
-
 
 CHILDREN_PIDS = {}
 
@@ -195,8 +188,12 @@ class SServer(Server):
     def _start_connection(self, sock):
         ssc = SSConnection(self.__store, sock=sock)
 
+HANDLER = None
+
 def fcgi_logging(root, log_level):
+    global HANDLER
     hdlr = logging.FileHandler(os.path.join(root, 'view/.ssfcgi.log'))
+    HANDLER = hdlr
     rl = logging.getLogger()
     rl.addHandler(hdlr)
     fmt = logging.Formatter('[singleshot/%(asctime)s/%(levelname)s] %(message)s')
@@ -230,6 +227,6 @@ def main(show_exceptions=False, root=None, **config):
             asyncore.poll(30.)
         server.listen(5)
     LOG.info('Singleshot FastCGI shutdown')
-        
+    handler.flush()
 
 

@@ -15,7 +15,18 @@ def all_templates():
 
 __templates = {'404.html' : """<html><head><title>Not Found</title></head><body><h1>Not found</h1></body></html>""",
 
-'page.html' : """<macros>
+'macros.html' : """<macros>
+<div metal:define-macro="paginator" tal:define="p paginator" 
+     class="paginator">
+<div tal:condition="python:path('paginator/pages') &gt; 1">
+<span class="info"><span tal:content="p/pageno">1</span> of <span
+tal:content="p/pages">1</span>
+(<span tal:content="p/count">1</span> item<span tal:omit-tag="" tal:condition="python:path('p/count') != 1">s</span>)</span>
+<ul class="pagelist">
+  <li tal:repeat="page p/pageitems"><span class="currentpage" tal:omit-tag="not:page/current"><a tal:attributes="href page/href" tal:omit-tag="not:page/href" tal:content="page/name">1</a></span></li>
+</ul>
+</div>
+</div>
 <html xmlns:tal="http://xml.zope.org/namespaces/tal"  
       xmlns:metal="http://xml.zope.org/namespaces/metal"
       metal:define-macro="page">
@@ -24,51 +35,25 @@ __templates = {'404.html' : """<html><head><title>Not Found</title></head><body>
     <link rel="alternate" type="application/rss+xml" title="RSS 2.0
 	 recent photos" tal:attributes="href ssroot/rss/recent/" />
 <style>
-  .header a { text-decoration: none; }
-
+.header a { text-decoration: none; }
 body {  padding: 5px;  font-family: 'Lucida Grande', Verdana, Arial, Sans-Serif;  text-align: center; }
-
-.textblock {  text-align: left;  font-family: Georgia, serif;
-margin-left: 4em;  margin-right: 4em; }
-
+.textblock {  text-align: left;  font-family: Georgia, serif; margin-left: 4em;  margin-right: 4em; }
 .error {  border: 3px solid red;  margin: 10px;  padding: 5px; }
-
 .photo { border: 5px solid black; margin: 15px; }
 .thumbnail { border: 2px solid black; margin: 5px; }
-
 #header { height: 50px; padding: 5px; font-size: 15px; margin-bottom: 10px; }
-
-#footer {
-  margin-top: 40px;
-  border-top: 1px dotted #888888;
-  font-size: .7em;
-  color: #333333;
-}
-
-
-.itemcrumbs {
-   text-align: left;
-   font-size: .8em;
-   padding-bottom: 5px;
-}
-
+#footer {  margin-top: 40px;  border-top: 1px dotted #888888;  font-size: .7em;  color: #333333; }
+.itemcrumbs {   text-align: left;   font-size: .8em;   padding-bottom: 5px; }
 .headerimg { float: left; }
-
 .navlinks { display: inline; }
-
-.navlinks li {
-  display: inline;
-  padding-right: 10px;
-}
-
-#rsslink {
-   font-size: 9px;
-   font-weight: bold;
-   background-color: #FF6600;
-   color: #ffffff;
-   border: 3px solid black;
-   padding: 3px;
-}
+.navlinks li {  display: inline;  padding-right: 10px; }
+.paginator {  font-size: .8em;    padding: 8px; }
+.paginator .info { font-weight: bold; }
+.pagelist {   display: inline; }
+.pagelist li {  display: inline;  padding-right: 5px; }
+.pagelist li a {  text-decoration: none;  border: solid 1px #dddddd;  padding-left: 3px;  padding-right: 3px;  padding-top: 2px;  padding-bottom: 2px; }
+.currentpage a {  color: black;  font-weight: bold; }  
+#rsslink {    font-size: 9px;    font-weight: bold;   background-color: #FF6600;    color: #ffffff;    border: 3px solid black;    padding: 3px; }
 </style>
    </head>
 <body>
@@ -106,14 +91,15 @@ tal:attributes="href crumb/link" tal:content="crumb/title">Crumb</a> &gt; </span
 
 <div metal:fill-slot="content">
 <h2 tal:content="item/title">Album Title</h2>
+<div metal:use-macro="macros/macros/paginator" />
 <table class="thumbnails" align="center">
   <tr tal:repeat="row itemsbyrows/3">
      <td valign="top" tal:repeat="item row" tal:attributes="class item/cssclassname"><a tal:condition="item/image" href="#"
 	  tal:attributes="href item/href;title item/title"><img 
-           tal:define="t item/image/sizes/thumb" tal:attributes="src t/href;height t/height;width t/width" class="thumbnail" border="0" /></a><br /><a tal:content="item/title" tal:attributes="href item/href">Item title</a></td></tr></table>
-       
-</div>
+           tal:define="t item/image/sizes/thumb" tal:attributes="src t/href;height t/height;width t/width" class="thumbnail" border="0" /></a><br /><a tal:content="item/title" tal:attributes="href item/href">Item title</a></td></tr></table>       
+<div metal:use-macro="macros/macros/paginator" />
 
+</div>
 </html>""",
 
 # --------------------------------------------------------------------

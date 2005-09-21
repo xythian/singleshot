@@ -8,7 +8,7 @@ import mmap
 from singleshot.properties import dtfromtimestamp
 import time
 import os
-from datetime import datetime
+from datetime import datetime, date
 from cStringIO import StringIO
 import cPickle as pickle
 #import pickle
@@ -51,10 +51,9 @@ class ImageFSLoader(FSLoader):
             p = month_dir(fileinfo.dirname)
             if p:
                 year, month, t = p
-                img.publish_time = t                            
+                img.publish_time = t
             else:
-                img.publish_time = fileinfo.mtime
-            img.publish_time = dtfromtimestamp(img.publish_time)
+                img.publish_time = dtfromtimestamp(fileinfo.mtime)
         if not img.title.strip():
             img.title = img.filename
         rootzor = fileinfo.dirname[len(self.store.root)+1:]
@@ -70,7 +69,7 @@ def month_dir(fspath):
     except ValueError:
         return None
     if month > 0 and month < 13:
-        return year, month, time.mktime((year, month, 01, 0, 0, 0, -1, -1, 0))
+        return year, month, date(year, month, 01)
     else:
         return None
     
@@ -363,6 +362,7 @@ class PickleCacheStore(object):
             return True
         try:
             self.__uptodatecheck = n
+            LOG.debug('Rechecking directories')
             t = os.stat(path).st_mtime
             outofdate = [item for item in self._directories if os.stat(item).st_mtime > t]
             return not bool(outofdate)

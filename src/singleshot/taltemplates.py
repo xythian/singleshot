@@ -15,7 +15,7 @@ TEMPLATE_CACHE = TemplateCache()
 
 class ViewableObject(object):
     viewname = 'view'
-    macrostemplate = 'page'
+    macrostemplate = 'macros'
     http_status = ''
     
     def load_template(self, path):
@@ -35,7 +35,7 @@ class ViewableObject(object):
         
 
     def create_context(self):
-        context = simpleTALES.Context()
+        context = simpleTALES.Context(allowPythonPath=True)
         context.addGlobal("macros",
                           self.load_template(self.find_macros_template()))        
         return context
@@ -93,11 +93,13 @@ class ViewableContainerObject(ViewableObject):
             n1 += 1
         n = n1
         return group_item(self.items, n)
-        
+
+    
 
     def create_context(self):
         context = super(ViewableContainerObject, self).create_context()
         context.addGlobal("itemsbyrows", PathFunctionVariable(self.itemsbyrows))
         context.addGlobal("itemsbycolumns", PathFunctionVariable(self.itemsbycolumns))        
         return context
+
 

@@ -56,6 +56,8 @@ def handle(request):
     config = request.config
     if path.startswith(config.url_prefix) and config.url_prefix != '/':
         path = path[len(config.url_prefix)-1:]
+    elif path.startswith(config.url_prefix[1:]) and config.url_prefix != '/':
+        path = path[len(config.url_prefix)-2:]
     if not path:
         path = '/'
 

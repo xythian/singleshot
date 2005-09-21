@@ -6,7 +6,7 @@ import os
 import sys
 from singleshot.model import Item, ImageItem, ContainerItem
 from singleshot.taltemplates import ViewableObject, ViewableContainerObject, PathFunctionVariable
-
+from urlparse import urlsplit, urlunsplit
 from singleshot.fsloader import ImageSizes
 
 class Crumb(object):
@@ -91,7 +91,7 @@ class ItemView(object):
             return self._load_view('/' + path)
         context.addGlobal("title", self.title)
         context.addGlobal("data", PathFunctionVariable(pathloader))
-        context.addGlobal("lastimage", PathFunctionVariable(lambda x:self._load_view('/recent/1').items[0]))
+        context.addGlobal("lastimage", PathFunctionVariable(lambda x:self._load_view('/recent').items[0]))
         context.addGlobal("ssroot",
                           PathFunctionVariable(lambda x:self.config.url_prefix +  x))
         def make_crumbs():
@@ -196,6 +196,90 @@ class ContainerView(ItemView, ViewableContainerObject):
                     return child.image
             return None
 
+    def view_page(self, pn):
+        return ContainerPageView(self._of,
+                                 self.store,
+                                 page=pn,
+                                 parent=self.parent,
+                                 load_view=self._load_view)
+
+class PageEntry(object):
+    def __init__(self, name, current=False, href=None):
+        self.name = name
+        self.current = current
+        self.href = href
+        
+
+class Paginator(object):
+    def __init__(self, items, page, href, pagesize=24):
+        self.__items = items
+        self.currentpage = page
+        self.pageno = page + 1
+        self.count = len(items)
+        self.pages = self.count / pagesize
+        if self.pages * pagesize < self.count:
+            self.pages += 1
+        self.startitem = self.currentpage * pagesize
+        self.enditem = self.startitem + pagesize
+        self.items = items[self.startitem:self.enditem]
+        scheme, network, path, query, fragment = urlsplit(href)
+        if query:
+            self.href = urlunsplit((scheme, network, path, query + '&', fragment))
+        else:
+            self.href = href + '?'
+
+    def pageitems(self):
+        if self.pages <= 13:
+            for i in xrange(self.pages):
+                current = self.currentpage == i
+                yield PageEntry(str(i+1), current=current, href=self.href + 'p=%d' % i)
+        elif self.currentpage <= 7:
+            for i in xrange(9):
+                current = self.currentpage == i
+                yield PageEntry(str(i+1), current=current, href=self.href + 'p=%d' % i)
+            yield PageEntry('. . .')
+            for i in xrange(self.pages - 3, self.pages):
+                current = self.currentpage == i
+                yield PageEntry(str(i+1), current=current, href=self.href + 'p=%d' % i)
+        elif self.currentpage >= (self.pages - 8):
+            for i in xrange(4):
+                current = self.currentpage == i
+                yield PageEntry(str(i+1), current=current, href=self.href + 'p=%d' % i)
+            yield PageEntry('. . .')
+            for i in xrange(self.pages - 9, self.pages):
+                current = self.currentpage == i
+                yield PageEntry(str(i+1), current=current, href=self.href + 'p=%d' % i)
+        else:
+            for i in xrange(4):
+                current = self.currentpage == i
+                yield PageEntry(str(i+1), current=current, href=self.href + 'p=%d' % i)
+            yield PageEntry('. . .')
+            for i in xrange(self.currentpage - 3, self.currentpage + 3):
+                current = self.currentpage == i                
+                yield PageEntry(str(i+1), current=current, href=self.href + 'p=%d' % i)
+            yield PageEntry('. . .')
+            for i in xrange(self.pages - 3, self.pages):
+                current = self.currentpage == i                
+                yield PageEntry(str(i+1), current=current, href=self.href + 'p=%d' % i)
+
+
+class ContainerPageView(ContainerView):
+    __of__ = ContainerItem
+
+    def __init__(self, o, store, page=0, **kw):
+        super(ContainerPageView, self).__init__(o, store, **kw)
+        self.page = page
+        self.paginator = Paginator(super(ContainerPageView, self)._load_items(), self.page, self.href)
+
+    def _load_items(self):
+        return self.paginator.items
+        
+
+    def create_context(self):
+        context = super(ContainerPageView, self).create_context()
+        context.addGlobal('paginator', self.paginator)
+        return context
+        
 class ViewLoader(object):
     def __init__(self, store):
         self.__cache = {}
@@ -204,6 +288,9 @@ class ViewLoader(object):
 
     def _load_view(self, path, parent=None):
         item = self.__load_item(path)
+        return self._create_view(item, parent)
+    
+    def _create_view(self, item, parent):
         cls = ItemView
         if not item:
             return None
@@ -222,6 +309,12 @@ class ViewLoader(object):
             path = '/' + path
         try:
             result = self.__cache[path]
+            item = self.__load_item(path)
+            if result._of is item:
+                return result
+            else:
+                result = self._create_view(item, None)
+                self.__cache[path] = result            
         except KeyError:
             result = self._load_view(path)
             self.__cache[path] = result

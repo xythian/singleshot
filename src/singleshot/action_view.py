@@ -26,15 +26,23 @@ def do_view(path, request):
     if path.endswith('.html'):
         path = path[:-5]
     ctxname = request.getfirst('in')
+    pn = request.getfirst('p')
+    if not pn:
+        pn = 0
+    else:
+        pn = int(pn)
     parent = None
     load_view = request.store.load_view
     if ctxname:
         parent = load_view(ctxname)
     view = load_view(path, parent=parent)
     if not view:
-        view = pages.create(request, path)    
-    if view:
-        view.request_view(request)
+        view = pages.create(request, path)
+    if not view:
+        return view    
+    elif hasattr(view, 'view_page'):
+        view = view.view_page(pn)
+    view.request_view(request)
     return view
 
         

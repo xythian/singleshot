@@ -1,3 +1,12 @@
+Version 2.0.0a3
+  - Add pagination to album view page to deal with huge directories of
+  images
+  - Modify date handling to support year/month directories before
+  epoch (Jan 1 1970)
+  - Fix // issue with Apache 2
+  - Change macros template to 'macros.html' from 'page.html'
+  - Fix view caching so it detects changes to underlying items
+
 Version 2.0.0a1, ...
   - Substantially rearranged dispatch.   All CGI entry now goes
   through sscgi.py which centralizes some error reporting and
