@@ -64,11 +64,22 @@ Instructions
 site-packages, run python setup.py install.  Otherwise, skip this
 step.
 
-3. To set up a new album root using Singleshot, use the singleshotinit.py script.   It's in the scripts/ directory of the unpacked SIngleshot distribution, or with the other Python-library-installed scripts if you installed Singleshot into site-packages.
+3. To set up a new album root using Singleshot, use the
+singleshotinit.py script.  It's in the scripts/ directory of the
+unpacked SIngleshot distribution, or with the other
+Python-library-installed scripts if you installed Singleshot into
+site-packages.
 
-4. Run singleshotinit.py -h to see a list of the command line options.   Generally, you'll want either the --standalone install.  If you installed Singleshot in a place not normally on sys.path (e.g. by using the --home option to setup.py install), you'll need to either put that on PYTHONPATH before running singleshotinit or tell singleshot init about it using --path.
+4. Run singleshotinit.py -h to see a list of the command line options.
+Generally, you'll want either the --standalone install.  If you
+installed Singleshot in a place not normally on sys.path (e.g. by
+using the --home option to setup.py install), you'll need to either
+put that on PYTHONPATH before running singleshotinit or tell
+singleshot init about it using --path.
 
-For example, suppose I wanted to get Singleshot running in my personal web directory ~/public_html/photos which will show up on my web server as /~fox/photos/ and I didn't want to install it in site-packages.
+For example, suppose I wanted to get Singleshot running in my personal
+web directory ~/public_html/photos which will show up on my web server
+as /~fox/photos/ and I didn't want to install it in site-packages.
 
 I'd unpack Singleshot's archive, cd into the directory, and run
 
@@ -105,5 +116,18 @@ _album.cfg in every directory can have:
     order=dir,title,-mtime   ; sort order for display.  Valid orders are:
                              ;   title, dir, mtime, exifdate, name, href
                              ;  prepending '-' sorts in descending order instead of ascending 
+
+
+ALBUMROOT/pages can be a directory with files in it.   foo.html will show up as URLROOT/foo/ and will display the contents of foo.html.
+
+This is to enable you to easily create static pages on the site with the photos.
+
+Writing templates
+-----------------
+
+http://www.owlfish.com/software/simpleTAL/tal-guide.html describes the syntax of the templating system used by Singleshot 2.x.
+
+(** document attributes and objects exposed to templates **)
+
 
 
