@@ -117,6 +117,8 @@ class ExposureMetadata(object):
     capture_time = None
     camera_mfg = None
     camera_model = None
+    camera_serial = None
+    capture_fileno = None
     duration = None
     aperture = None
     focal = None
@@ -190,17 +192,33 @@ class JpegHeader(object):
         self.exposure.camera_mfg = data.get(0x10f)
         self.exposure.camera_model = data.get(0x110)
         self.exposure.capture_time = parse_exif_datetime(data.get(0x132))
-        if exififd:
-            exif = self.decode_tags(body, xoffset+exififd, bytes_of, _unpack,
-                                    {0x829d : 1,
-                                     0x829A : 1,
-                                     0x920A : 1,
-                                     0x8827 :1}.get)
-            self.exposure.duration = exif.get(0x829a)
-            self.exposure.aperture = exif.get(0x829d)
-            self.exposure.focal = exif.get(0x920A)
-            self.exposure.iso = exif.get(0x8827)
         
+        if exififd:
+           exiftags = {0x829d : 1,
+                       0x829A : 1,
+                       0x920A : 1,
+                       0x8827 : 1}
+           if data.get(0x10f) == 'Canon':
+              exiftags[0x927C] = 1 # MakerNote             
+           exif = self.decode_tags(body, xoffset+exififd, bytes_of, _unpack,
+                                    exiftags.get)
+           self.exposure.duration = exif.get(0x829a)
+           self.exposure.aperture = exif.get(0x829d)
+           self.exposure.focal = exif.get(0x920A)
+           self.exposure.iso = exif.get(0x8827)
+           if data.get(0x10f) == 'Canon':
+              cmap = {15 : 'Auto', 16 : '50', 17 : '100', 18 : '200', 19 : '400'}
+              data = exif.get(0x927C)
+              if data:
+                 canon = self.decode_tags(data, 0, bytes_of, _unpack, {0x0008 : 1, 0x000c : 1, 0x0001 : 1}.get)
+                 self.exposure.capture_fileno = canon.get(0x0008)
+                 self.exposure.camera_serial = canon.get(0x000c)
+                 ix1 = canon.get(0x001)
+                 if ix1:
+                    if not self.exposure.iso and ix1[16]:
+                       self.exposure.iso = cmap.get(ix1[16])
+                       
+                 
 
     def handle_app1(self, body, offset, length):
         if body[offset:offset+6] == 'Exif\x00\x00':
