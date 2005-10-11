@@ -2,7 +2,7 @@
 
 from distutils.core import setup
 
-setup(name = 'singleshot', version="2.0.0a4",
+setup(name = 'singleshot', version="2.0.0",
       packages=["singleshot", "singleshot.templates", "simpletal", ""],
       author = "Ken Fox",
       author_email = "fox@mars.org",
