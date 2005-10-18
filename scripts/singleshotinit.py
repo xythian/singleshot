@@ -177,11 +177,16 @@ def main():
     if not options.root or not options.url:
         parser.error("Please specify both url and root")
 
+    if '~' in options.root:
+        options.root = os.path.expanduser(options.root)
+    
     scheme, network, path, query, fragment = urlsplit(options.url)
 
     if scheme or network or query or fragment:
         print >>sys.stderr, 'Using %s for the path prefix.' % path
         options.url = path
+    elif not path and not options.url:
+        options.url = '/'
 
     if options.mode == 'cgi':
         cginame = options.cginame
@@ -267,9 +272,12 @@ def main():
             print >>sys.stderr, 'Unable to find templates.  Ensure singleshot is on the path?'
 
             
-        
+    if options.url == '/':
+        rewritebase = '/'
+    else:
+        rewritebase = options.url[:-1]
     subs = {'python' : sys.executable,
-            'rewritebase' : options.url[:-1],
+            'rewritebase' : rewritebase,
             'baseurl' : options.url,
             'root' : os.path.abspath(options.root),
             'templatedir' : tmplroot,

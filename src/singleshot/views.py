@@ -266,18 +266,27 @@ class Paginator(object):
 class ContainerPageView(ContainerView):
     __of__ = ContainerItem
 
-    def __init__(self, o, store, page=0, **kw):
+    def __init__(self, o, store, page=None, pagesize=24, **kw):
         super(ContainerPageView, self).__init__(o, store, **kw)
         self.page = page
-        self.paginator = Paginator(super(ContainerPageView, self)._load_items(), self.page, self.href)
+        self.setpagesize(pagesize)
+
 
     def _load_items(self):
         return self.paginator.items
-        
+
+    def setpagesize(self, path):
+        p = int(path)
+        self.paginator = Paginator(super(ContainerPageView, self)._load_items(), self.page, self.href, pagesize=p)
+
+    def getpaginator(self, path):
+        return self.paginator
 
     def create_context(self):
         context = super(ContainerPageView, self).create_context()
-        context.addGlobal('paginator', self.paginator)
+        # gross like cooties
+        context.addGlobal('setpagesize', PathFunctionVariable(self.setpagesize))
+        context.addGlobal('paginator', PathFunctionVariable(self.getpaginator))
         return context
         
 class ViewLoader(object):

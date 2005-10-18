@@ -5,7 +5,7 @@ from singleshot.model import ContainerItem, ImageItem, MONTHS, DynamicContainerI
 from singleshot import imageprocessor, pages
 import mmap
 
-from singleshot.properties import dtfromtimestamp
+from singleshot.properties import dtfromtimestamp, Local
 import time
 import os
 from datetime import datetime, date
@@ -69,7 +69,7 @@ def month_dir(fspath):
     except ValueError:
         return None
     if month > 0 and month < 13:
-        return year, month, date(year, month, 01)
+        return year, month, datetime(year, month, 01, 00, 00, 00,tzinfo=Local)
     else:
         return None
     
@@ -467,7 +467,7 @@ class PickleCacheStore(object):
 
     def most_tags(self):
         self.ready()
-        x = [(tag.name, tag) for tag in self.tags.values() if tag.count > 3 and ':' not in tag.name]
+        x = [(unicode(tag.name), tag) for tag in self.tags.values() if tag.count > 3 and ':' not in tag.name]
         return x
 
     def recent_images(self, count=10):
@@ -579,14 +579,14 @@ class SingleshotLoader(ItemLoader):
                                         order=order)
         elif path.startswith('/recent'):
             km = path.split('/')[1:]
-            count = 15
+            count = 200
             if len(km) == 2:
                 try:
                     count = int(km[1])
                 except:
                     pass
-            if count > 50:
-                count = 50
+            if count > 5000:
+                count = 5000
             
             return self.dynacontainer(path,
                                         'Recent photos',

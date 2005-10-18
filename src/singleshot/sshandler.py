@@ -36,6 +36,12 @@ class Request(object):
         self.content_length = l
         self.write(data)
 
+    def find_action(self, action):
+        actionmodule = __import__('singleshot.action_' + action,
+                                  globals(),
+                                  locals())
+        actionmodule = getattr(actionmodule, 'action_' + action)
+        return actionmodule    
 
 
     def log(self, message, *args, **kwargs):

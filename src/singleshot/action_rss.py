@@ -10,7 +10,7 @@ def act(actionpath, request):
     absoluteurl = 'http://%s' % (request.host,)
     load_view = request.store.load_view
 
-    config = request.config
+    config = request.config.config
     rsstitle = config.get('feed', 'title')
     rssdesc = config.get('feed', 'description')
     rsscount = int(config.get('feed', 'recentcount'))
@@ -29,7 +29,7 @@ def act(actionpath, request):
                             link = lnk,
                             description = unicode(desc),
                             guid = RSS2.Guid(lnk),
-                            pubDate = datetime.fromtimestamp(image.publish_time))
+                            pubDate = image.publish_time)
     rss = RSS2.RSS2(
         title = rsstitle,
         link = absoluteurl,

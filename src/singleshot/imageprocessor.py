@@ -62,8 +62,9 @@ class ImageProcessor(object):
         target.width = header.width
         if header.iptc.datetime:
             target.publish_time = header.iptc.datetime
-        else:
+        elif  header.exposure.capture_time:
             target.publish_time = header.exposure.capture_time
+        target.keywords = ()
         if header.iptc.keywords:
             target.keywords = header.iptc.keywords
         return target    

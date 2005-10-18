@@ -89,8 +89,11 @@ class SingleshotConfig(ConfiguredEntity):
                                  'pil' : 'True' },
                     'feed' : { 'title' : '',
                               'description' : '',
-                               'recentcount' : '10'
-                              }
+                               'recentcount' : '10'                               
+                              },
+                    'actions' : { 'view'   : 'singleshot.action_view',
+                                  'rss'    : 'singleshot.action_rss',
+                                  'resize' : 'singleshot.action_resize'}
                }
     _default_imagesizes =  {  'mini' : 40,
                              'thumb' : 200,

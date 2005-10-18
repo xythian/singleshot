@@ -74,13 +74,6 @@ class CGIRequest(sshandler.Request):
             self.send_headers()
         sys.stdout.write(bytes)
 
-    def find_action(self, action):
-        actionmodule = __import__('singleshot.action_' + action,
-                                  globals(),
-                                  locals())
-        actionmodule = getattr(actionmodule, 'action_' + action)
-        return actionmodule
-
 def exception_handler(etype, evalue, etb):
     out = sys.stdout
     out.write("""<!--: spam

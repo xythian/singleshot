@@ -46,10 +46,12 @@ def iptc_property(tuple, typ=None):
     def _delegate_get(self):
         result = self._get_property(tuple)
         if typ:
-            if isinstance(result, str):
+            if isinstance(result, str) and result:
                 return (result,)
+            elif not result:
+               return ()
             else:
-                return result
+               return result
         else:
             return result
     return property(_delegate_get)
@@ -149,7 +151,7 @@ class JpegHeader(object):
         if body[offset:offset+14] != 'Photoshop 3.0\x00':
             return
         offset += 14
-        while body[offset:offset+4] == '8BIM' and offset < endmark:   
+        while body[offset:offset+4] == '8BIM' and offset < endmark:           
             offset += 4
             code, namel = unpack('>HB', body[offset:offset+3])
             offset += 3
@@ -163,7 +165,7 @@ class JpegHeader(object):
                   endmark = offset+size
                else:
                   offset += 1
-               self.iptc = IptcHeader(self.iptc_tags(offset, body, endmark))
+               self.iptc = IptcHeader(self.iptc_tags(offset, body, endmark))              
             if size:
                offset += size
                if offset & 1:
@@ -267,7 +269,8 @@ class JpegHeader(object):
         while offset+3 < endoffset:
             hdr, t1, t2 = unpack('>BBB', body[offset:offset+3])
             if hdr != 0x1C or t1 < 1 or t1 > 9:
-                break
+               offset += 3
+               continue
             offset += 3
             size = ord(body[offset])
             if size & 128:

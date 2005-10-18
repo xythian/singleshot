@@ -18,7 +18,7 @@ __templates = {'404.html' : """<html><head><title>Not Found</title></head><body>
 'macros.html' : """<macros>
 <div metal:define-macro="paginator" tal:define="p paginator" 
      class="paginator">
-<div tal:condition="python:path('paginator/pages') &gt; 1">
+     <div tal:condition="python:path('p/pages') &gt; 1">
 <span class="info"><span tal:content="p/pageno">1</span> of <span
 tal:content="p/pages">1</span>
 (<span tal:content="p/count">1</span> item<span tal:omit-tag="" tal:condition="python:path('p/count') != 1">s</span>)</span>
@@ -130,7 +130,8 @@ tal:attributes="href crumb/link" tal:content="crumb/title">Crumb</a> &gt; </span
 
 <div metal:fill-slot="content">
 <h2 tal:content="item/title">Album Title</h2>
-<div style="margin: 0px auto; width: 60%">
+<div style="margin: 0px auto; width: 60%" tal:define="pz setpagesize/100">
+<div metal:use-macro="macros/macros/paginator" />
 <table border="0">
   <tr>
      <td valign="top" tal:repeat="row itemsbycolumns/4">
@@ -140,6 +141,7 @@ tal:attributes="href crumb/link" tal:content="crumb/title">Crumb</a> &gt; </span
  
   <span tal:repeat="tag item/items"> </span>
 </div>
+<div metal:use-macro="macros/macros/paginator" />
 </div>
 
 </html>""",
@@ -195,7 +197,7 @@ tal:attributes="href crumb/link" tal:content="crumb/title">Crumb</a> &gt; </span
 
 <p tal:content="item/caption" tal:condition="item/caption">Caption</p>
 
-<div>Keywords:
+<div tal:condition="item/keywords">Keywords:
 <span tal:repeat="tag item/keywords"><a href="#" tal:attributes="href string:${ssroot}keyword/${tag}" tal:content="tag">Keyword</a> </span> </div>
 
 <span tal:content="item/camera_model">Camera</span> 

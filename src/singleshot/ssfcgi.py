@@ -149,11 +149,7 @@ class FCGIRequest(sshandler.Request):
         if action == 'resize':
             return FastCGIResizeAction()
         else:
-            actionmodule = __import__('singleshot.action_' + action,
-                                      globals(),
-                                      locals())
-            actionmodule = getattr(actionmodule, 'action_' + action)
-            return actionmodule
+            return super(FCGIRequest, self).find_action(action)
 
 
 class SSConnection(Connection):
