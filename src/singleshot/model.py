@@ -1,4 +1,4 @@
-from singleshot.properties import AutoPropertyMeta
+from singleshot.properties import AutoPropertyMeta, dtfromtimestamp
 import time
 import os
 
@@ -54,15 +54,17 @@ class DynamicContainerItem(ContainerItem):
     __contents = ()
     __contentsfunc = None
 
-    def __init__(self, store, path, title, count=-1, contents=None, contentsfunc=None, pt=None, viewpath='', imageviewpath='', order=None, caption='', highlightpath=''):
+    def __init__(self, store, path, title, count=-1, contents=None, contentsfunc=None, pt=None, publish_time=None, viewpath='', imageviewpath='', order=None, caption='', highlightpath=''):
         self.path = path
         self.title = title
         if highlightpath:
             self.highlightpath = highlightpath
         if pt:
             self.publish_time = pt
+        elif publish_time:
+            self.publish_time = publish_time
         else:
-            self.publish_time = time.time()
+            self.publish_time = dtfromtimestamp(time.time())
         if order != None:
             self.order = order
         self.__count = count
@@ -72,11 +74,11 @@ class DynamicContainerItem(ContainerItem):
         else:
             self.__contents = contents
         if viewpath:
-            self.viewpath = viewpath
+            self.viewpath = store.find_template(viewpath)
         else:
             self.viewpath = store.find_template('album.html')
         if imageviewpath:
-            self.imageviewpath = imageviewpath
+            self.imageviewpath = store.find_template(imageviewpath)
         else:
             self.imageviewpath = store.find_template('view.html')
 

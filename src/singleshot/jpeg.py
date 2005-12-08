@@ -126,6 +126,13 @@ class ExposureMetadata(object):
     focal = None
     iso = None
 
+def hexout(s, o=0):
+   while s:
+       print '  %3d: %02x %s' % (o, ord(s[0]), repr(s[0]))
+       o += 1
+       s = s[1:]
+
+
 class JpegHeader(object):
     __metaclass__ = AutoPropertyMeta
     def __init__(self, path):
@@ -146,33 +153,53 @@ class JpegHeader(object):
     def handle_xmp(self, body, offset, length):
         self.__xmpbody = body[offset:offset+length]
 
+    def handle_app2(self, body, offset, length):
+        pass
+
+    def handle_app13(self, body, offset, length):
+        pass
+        
     def handle_photoshop(self, body, offset, length):
         endmark = offset+length
         if body[offset:offset+14] != 'Photoshop 3.0\x00':
             return
         offset += 14
-        while body[offset:offset+4] == '8BIM' and offset < endmark:           
+        while body[offset:offset+4] == '8BIM' and offset < endmark:
+            start = offset
             offset += 4
             code, namel = unpack('>HB', body[offset:offset+3])
-            offset += 3
-            offset += namel
-            size = unpack('>I', body[offset:offset+4])[0]
-            offset += 4
-            if offset & 1:
-               offset += 1
-            if code == 0x404:
-               if size:
-                  endmark = offset+size
-               else:
-                  offset += 1
-               self.iptc = IptcHeader(self.iptc_tags(offset, body, endmark))              
-            if size:
-               offset += size
-               if offset & 1:
-                  offset += 1             
+            if namel:
+                offset += 3 + namel
+                if offset & 1:
+                    offset += 1
+                size = unpack('>I', body[offset:offset+4])[0]
+                offset += 4
+#                print 'size = %d' % size
             else:
-               offset = endmark
+                offset = start + 10
+#                print 'hexoutzor'
+#                hexout(body[start:offset+2], start)
+                size = unpack('>H', body[offset:offset+2])[0]
+                offset += 2
+#                print 'alternate size = %d' % size
+#            if not size:
+#                print 'bogus!!'
+#                break
+#                mx = body.find('8BIM', offset)
+#                if mx > endmark or mx == -1:
+#                    size = endmark - offset
+#                else:
+#                    size = mx - offset
 
+#            print hex(code), namel, size
+#            hexout(body[start:offset+5], start)
+            if code == 0x404:
+                xendmark = offset+size
+                self.iptc = IptcHeader(self.iptc_tags(offset, body, xendmark))
+
+            offset += size
+#            if offset & 1:
+#                offset += 1
 
     def handle_exif(self, body, soffset, l):
         def bytes_of(start, length):
@@ -225,9 +252,8 @@ class JpegHeader(object):
     def handle_app1(self, body, offset, length):
         if body[offset:offset+6] == 'Exif\x00\x00':
             self.handle_exif(body, offset+6, length-6)
-#        elif body.startswith('http://ns.adobe.com/xap/1.0/\x00'):
-#            self.handle_xmp(body[29:])
-#        print body
+        elif body[offset:offset+29] == ('http://ns.adobe.com/xap/1.0/\x00'):
+            self.handle_xmp(body, offset+29, length-29)
 
 
     def _read_header(self, path, callbacks):
@@ -251,6 +277,10 @@ class JpegHeader(object):
                    pass
                if callback:
                   callback(file, offset, length)
+               else:
+                   pass
+#                   print hex(type), length
+#                   hexout(file[offset:offset+50])
                offset += length              
                subhdr = file[offset:offset+4]
         finally:
@@ -343,15 +373,23 @@ class JpegHeader(object):
         
 
 
-    emptyxmp = EmptyXMPHeader()
-
     def load(self, path):
         self.__xmp_parsed = None
         self.__xmpbody = None
         self._read_header(path, {0xC0 : self.handle_sof,
 #                                 0xFE : self.handle_comment,
+#                                 0xE2 : self.handle_app2,
+                                 0xEE : self.handle_app13,
                                  0xED : self.handle_photoshop,
                                  0xE1 : self.handle_app1})
+        if self.__xmpbody and isinstance(self.iptc, DummyIptc):
+            xmp = XMPHeader(self.__xmpbody)
+            if hasattr(xmp, 'caption'):
+                self.iptc.caption = str(xmp.caption[0])
+            if hasattr(xmp, 'keywords'):
+                self.iptc.keywords = map(str, xmp.keywords)
+            if hasattr(xmp, 'Headline'):
+                self.iptc.headline = str(xmp.Headline)
 
 
 

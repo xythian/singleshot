@@ -9,6 +9,10 @@ from singleshot.taltemplates import ViewableObject, ViewableContainerObject, Pat
 from urlparse import urlsplit, urlunsplit
 from singleshot.fsloader import ImageSizes
 
+import logging
+LOG = logging.getLogger('singleshot')
+
+
 class Crumb(object):
     def __init__(self, link=None, item=None):
         self.link = link
@@ -92,6 +96,14 @@ class ItemView(object):
         context.addGlobal("title", self.title)
         context.addGlobal("data", PathFunctionVariable(pathloader))
         context.addGlobal("lastimage", PathFunctionVariable(lambda x:self._load_view('/recent').items[0]))
+        def load_lastitem(subpath):
+            path = self.store.loader.recent_items(1)[0]
+            if path.startswith('/album'):
+                parent = None
+            else:
+                parent = self._load_view('/recent')
+            return self._load_view(path, parent=parent)
+        context.addGlobal("lastitem",  PathFunctionVariable(load_lastitem))
         context.addGlobal("ssroot",
                           PathFunctionVariable(lambda x:self.config.url_prefix +  x))
         def make_crumbs():
@@ -183,8 +195,14 @@ class ContainerView(ItemView, ViewableContainerObject):
         else:
             orders = self.order.split(',')
             orders = [ORDERS[order] for order in orders]
-        items = OrderedItems([self._load_view(path, parent=self) for path in self.contents],
-                             *orders)
+        result = []
+        for path in self.contents:
+            view = self._load_view(path, parent=self)
+            if not view:
+                LOG.warn('Path in contents returned no view: %s', path)
+            else:
+                result.append(view)
+        items = OrderedItems(result, *orders)
         return items
 
     def _load_image(self):
@@ -288,17 +306,22 @@ class ContainerPageView(ContainerView):
         context.addGlobal('setpagesize', PathFunctionVariable(self.setpagesize))
         context.addGlobal('paginator', PathFunctionVariable(self.getpaginator))
         return context
-        
+
 class ViewLoader(object):
     def __init__(self, store):
-        self.__cache = {}
         self.__store = store
         self.__load_item = store.loader.load_item
 
-    def _load_view(self, path, parent=None):
+    def load_view(self, path, parent=None):
+        if not path:
+            path = '/'
+        elif path.endswith('/') and len(path) > 1:
+            path = path[:-1]
+        elif path[0] != '/':
+            path = '/' + path
         item = self.__load_item(path)
         return self._create_view(item, parent)
-    
+
     def _create_view(self, item, parent):
         cls = ItemView
         if not item:
@@ -308,6 +331,12 @@ class ViewLoader(object):
         elif isinstance(item, ImageItem):
             cls = ImageView
         return cls(item, self.__store, parent=parent, load_view=self.load_view)
+    
+        
+class CachingViewLoader(ViewLoader):
+    def __init__(self, store):
+        super(CachingViewLoader, self).__init__(store)
+        self.__cache = {}    
 
     def load_view(self, path, parent=None):
         if not path:
@@ -323,7 +352,8 @@ class ViewLoader(object):
                 return result
             else:
                 result = self._create_view(item, None)
-                self.__cache[path] = result            
+                if result:
+                    self.__cache[path] = result            
         except KeyError:
             result = self._load_view(path)
             self.__cache[path] = result
@@ -334,7 +364,7 @@ class ViewLoader(object):
         elif result.parent == parent.path:
             return result
         else:
-            return self._load_view(path, parent=parent)
+            return super(CachingViewLoader, self).load_view(path, parent=parent)
 
 
 def init_orders():

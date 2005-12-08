@@ -2,6 +2,7 @@ import PyRSS2Gen as RSS2
 
 from datetime import datetime
 from StringIO import StringIO
+from xml.sax import saxutils
 import codecs
 import os
 import sys
@@ -14,8 +15,9 @@ def act(actionpath, request):
     rsstitle = config.get('feed', 'title')
     rssdesc = config.get('feed', 'description')
     rsscount = int(config.get('feed', 'recentcount'))
+
+    items = [load_view(path) for path in request.loader.recent_items(rsscount)]
     
-    images = [load_view(path) for path in request.loader.recent_images(rsscount)]
     def toitem(image):
         s = StringIO()
         image.view(s, viewname='rssitem',
@@ -35,15 +37,18 @@ def act(actionpath, request):
         link = absoluteurl,
         description = rssdesc,
         lastBuildDate = datetime.now(),
-        items = [toitem(image) for image in images]
+        items = [toitem(image) for image in items]
         )
-    out = codecs.getwriter('iso-8859-1')(sys.stdout)
-    f = StringIO()
-    rss.write_xml(f)
+    f = StringIO()    
+    out = codecs.getwriter('iso-8859-1')(f)
+    handler = saxutils.XMLGenerator(f)
+    handler.startDocument()
+    handler.processingInstruction('xml-stylesheet', 'type="text/xsl" href="%s"' % (absoluteurl + '/static/rssformat.xsl') )
+    rss.publish(handler)
+    handler.endDocument()
     s = f.getvalue()
-    out.write('Content-type: %s\nContent-length: %d\n\n' % ('text/xml',
-                                                                   len(s)))
-    out.write(s)       
+    request.content_type = 'text/xml'
+    request.write(s)
     
                                    
         

@@ -479,6 +479,31 @@ class PickleCacheStore(object):
             count = len(imgs)
         return [img[1] for img in imgs[:count]]
 
+    def recent_items(self, count=10):
+        event = None
+        items = []
+        for item in self.recent_images(1000):
+            item = self.load_item(item)
+            if event and event in item.keywords:
+                continue
+            else:
+                event = None
+            eventalbum = None
+            for keyword in item.keywords:
+                if keyword.startswith('event:'):
+                    evtkey = keyword[6:]
+                    eventalbum = '/albums/events/%s' % evtkey
+            if eventalbum:
+                items.append(eventalbum)
+                event = keyword
+            else:
+                items.append(item.path)
+            if len(items) == count:
+                break
+        return items
+                    
+        
+
     def image_years(self):
         self.ready()        
         return self._years.values()
@@ -505,6 +530,7 @@ class SingleshotLoader(ItemLoader):
         self.most_tags = self._data.most_tags
         self.query = self._data.query_tag
         self.recent_images = self._data.recent_images
+        self.recent_items = self._data.recent_items
         self.image_year = self._data.image_year
         self.image_years = self._data.image_years
         self._albums = AlbumData(self.store)
@@ -562,21 +588,26 @@ class SingleshotLoader(ItemLoader):
             data = self._albums.get(n)
             if not data:
                 return None
+            def absify(path):
+                if isinstance(path, str):
+                    return path
+                else:
+                    return '/albums/' + path.path
             def cfunc():
                 if data.tag:
                     return self.query(data.tag.split('/'))
                 else:
-                    return ['/albums/' + al.path for al in data.children]
+                    return [absify(al) for al in data.children]
             if data.tag:
                 order = '-publishtime'
             else:
                 order = ''
             return self.dynacontainer(path,
-                                        data.title,
-                                        highlightpath=data.highlightpath,
-                                        contentsfunc=cfunc,
-                                        caption=data.caption,
-                                        order=order)
+                                      data.title,
+                                      contentsfunc=cfunc,
+                                      order=order,
+                                      caption=data.caption,
+                                      **data.info)
         elif path.startswith('/recent'):
             km = path.split('/')[1:]
             count = 200
@@ -659,7 +690,7 @@ class SingleshotLoader(ItemLoader):
             return self._data.load_item(path)
 
 class DynamicAlbum(object):
-    def __init__(self, name, tag=None, title='', caption='', children=(), highlightpath=''):
+    def __init__(self, name, tag=None, title='', caption='', children=(), **kw):
         self.path = name
         self.name = name
         if not title:
@@ -669,7 +700,7 @@ class DynamicAlbum(object):
         self.tag = tag
         self.caption = caption
         self.children = children
-        self.highlightpath = highlightpath
+        self.info = kw
 
 class AlbumData(object):
     def __init__(self, store):
@@ -695,10 +726,11 @@ class AlbumData(object):
             self.add(set)
             set.path = parentpath
             if set.children:
-                for s in set.children:                    
-                    if parentpath:
-                        s.path = parentpath + '/' + s.path
-                    fix_paths(s.path, s)
+                for s in set.children:
+                    if isinstance(s, DynamicAlbum):
+                        if parentpath:
+                            s.path = parentpath + '/' + s.path
+                        fix_paths(s.path, s)
         root = []
         for set in albums:
             root.append(set)

@@ -44,7 +44,10 @@ RewriteRule (^CVS/.*) $1 [F]
 RewriteRule (^Makefile) - [F]
 RewriteRule (\.cfg) - [F]
 
-RewriteRule ^static/.*.(jpg|css|js|gif)$ - [L]
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^static/.* - [L]
+
+RewriteRule favicon.ico$ static/favicon.ico [L]
 RewriteRule ^static/(.*) @cgi@/view/$1 [L]
 
 RewriteRule ^@cgi@.* - [L]
