@@ -163,6 +163,7 @@ class JpegHeader(object):
         endmark = offset+length
         if body[offset:offset+14] != 'Photoshop 3.0\x00':
             return
+#        print repr(body[offset:offset+length])
         offset += 14
         while body[offset:offset+4] == '8BIM' and offset < endmark:
             start = offset
@@ -170,9 +171,12 @@ class JpegHeader(object):
             code, namel = unpack('>HB', body[offset:offset+3])
             if namel:
                 offset += 3 + namel
-                if offset & 1:
-                    offset += 1
+#                if offset & 1:
+#                    print 'skip ',repr(body[offset-10:offset+5])
+#                    offset += 1
                 size = unpack('>I', body[offset:offset+4])[0]
+#                print 'size = ',size
+#                print repr(body[offset:offset+4])
                 offset += 4
 #                print 'size = %d' % size
             else:
@@ -283,6 +287,8 @@ class JpegHeader(object):
 #                   hexout(file[offset:offset+50])
                offset += length              
                subhdr = file[offset:offset+4]
+               if len(subhdr) == 0:
+                   break
         finally:
             file.close()
             os.close(fd)
@@ -296,6 +302,8 @@ class JpegHeader(object):
 
 
     def iptc_tags(self, offset, body, endoffset):
+#        print repr(body[offset-30:offset+20])
+#        print endoffset - offset
         while offset+3 < endoffset:
             hdr, t1, t2 = unpack('>BBB', body[offset:offset+3])
             if hdr != 0x1C or t1 < 1 or t1 > 9:
@@ -304,7 +312,7 @@ class JpegHeader(object):
             offset += 3
             size = ord(body[offset])
             if size & 128:
-                sizesize = ((size-128) << 8) + (ord(body[offset]))
+                sizesize = ((size-128) << 8) + (ord(body[offset+1]))
                 offset += 2
                 size = unpack('>I', ('\x00\x00\x00\x00' + body[offset:offset+sizesize][:-4]))
                 offset += sizesize
