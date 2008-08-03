@@ -1,0 +1,5 @@
+README
+setup.py
+recursive-include src *.py *.html
+recursive-include scripts *.py
+recursive-include lib *.py
