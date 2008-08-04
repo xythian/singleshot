@@ -64,7 +64,7 @@ class ViewableObject(object):
         request.content_type = self.content_type
         request.content_length = len(s)
         request.send_headers()
-        request.write(s)
+        return [s]
 
 def group_item(seq, n):
     l = len(seq)

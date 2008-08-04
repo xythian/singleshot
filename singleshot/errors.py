@@ -11,7 +11,7 @@ class MessagePage(ViewableObject):
     def __init__(self, request, **other):
         self.path = request.uri
         self.store = request.store
-        self.config = request.config
+        self.config = request.store.config
         self.form = request.form
         self.other = other
         
@@ -34,4 +34,4 @@ def return_404(path, request):
     page = pages.create(request, '404')
     if not page:
         page = PageNotFound(request, path=request.uri)
-    page.request_view(request)
+    return page.request_view(request)

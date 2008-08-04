@@ -69,7 +69,7 @@ def month_dir(fspath):
     except ValueError:
         return None
     if month > 0 and month < 13:
-        return year, month, datetime(year, month, 01, 00, 00, 00,tzinfo=Local)
+        return year, month, datetime(year, month, 01, 00, 00, 00, tzinfo=Local)
     else:
         return None
     
@@ -183,7 +183,6 @@ class FilesystemLoader(ItemLoader):
             item = self._cache[path]
         except KeyError:            
             item = None
-
         if not item:
             mtime = 0
         else:
@@ -207,14 +206,13 @@ class FilesystemLoader(ItemLoader):
                 n = exts.next()            
                 yield n
                 yield n.upper()
-            
         if not finfo.extension:
             xpath = finfo.path
             for ext in both(iter(self.imgloader.extensions)):
                 finfo = FileInfo(xpath + ext)
                 if finfo.exists:
                     if self.imgloader.handles(finfo):
-                        return self.imgloader.load_path(path, finfo)        
+                        return self.imgloader.load_path(path, finfo)
         return None
 
 class ImageSize(FilesystemEntity):
