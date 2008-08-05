@@ -12,16 +12,12 @@ LOG = logging.getLogger('singleshot')
 from singleshot.jpeg import JpegHeader
 from singleshot.storage import FilesystemEntity, FileInfo
 
-
 try:
     import Image
     import ImageEnhance    
 except ImportError:
     # no pil, I guess
     pass
-
-
-
 
 #
 # Singleshot image processing code
@@ -83,7 +79,6 @@ class ImageMagickProcessor(ImageProcessor):
         size = size.size
         sizespec = '%sx%s' % (size, size)
         args = [cmd, '-size', sizespec, '-scale', sizespec, '-unsharp', sharpen, source, dest]
-        
         LOG.debug('ImageMagickProcessor: "%s"', '" "'.join(args))
         r = os.spawnvpe(os.P_WAIT, cmd, args, self.config.getInvokeEnvironment())
         if r != 0 or not os.path.exists(dest):
@@ -101,8 +96,6 @@ class PILProcessor(ImageProcessor):
             return
         img = Image.open(fileinfo.path)
         target.width, target.height = img.size
-        
-
 
     def execute(self, source=None, dest=None, size=None):
         LOG.info('PIL Generating image %s -> %s (%dx%d)',
@@ -159,6 +152,11 @@ def create(store):
             processors.append(PILProcessor(store))
         except ImportError:
             pass
+    from singleshot.flv import FLVProcessor, AVIProcessor
+    processors.append(FLVProcessor(store))
+    # we don't really know what to do with these
+    # also we need imageprocessors to be involved in the DISPLAY (unlike the hack in views.py now)
+#    processors.append(AVIProcessor(store))
     if not processors:
         LOG.error('No available image processors')
         return CompositeProcesser([])

@@ -104,11 +104,17 @@ def image_handler(request):
         serveimage = image.sizes[size]
         serveimage.ensure()
         path = serveimage.path
-    if image.width > size or image.height > size:
-        serveimage = image.sizes[size]
-        serveimage.ensure()
-        path = serveimage.path
+    serveimage = image.sizes[size]
+    serveimage.ensure()
+    path = serveimage.path
     return request.wsgi_pass(FileApp(path))
+
+def video_handler(request):
+    path = request.urlmatch.group('path')
+    image = request.store.load_view(path)
+    path = image.rawimagepath
+    return request.wsgi_pass(FileApp(path))
+    
 
 def view_handler(request):
     path = request.urlmatch.group('path')
@@ -167,6 +173,7 @@ def create(store=None, middleware=(), error_handler=shotweb.debug_error_handler)
     urls = (
         r'/(?P<static>static/.+)', static_handler,
         r'(?P<path>.+?)(-(?P<size>[0-9]+))?\.jpg', image_handler,
+        r'(?P<path>.+?)\.flv', video_handler,        
         r'(?P<path>.+)\.html', view_handler,
         r'(?P<path>.+)', view_handler
     )
@@ -191,7 +198,7 @@ def configure_debug_logging():
     rl.addHandler(hdlr)
     fmt = logging.Formatter('[%(name)s/%(asctime)s/%(levelname)s] %(message)s')
     hdlr.setFormatter(fmt)
-    rl.setLevel(logging.DEBUG) 
+    rl.setLevel(logging.WARNING) 
 
 def serve_http(store=None, addr='', port=8080, configure_logging=configure_debug_logging):
     configure_logging()

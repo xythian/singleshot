@@ -32,8 +32,8 @@ tal:content="p/pages">1</span>
       metal:define-macro="page">
   <head>
     <title><span tal:content="title" tal:omit-tag="">Page Title</span></title>
-    <link rel="alternate" type="application/rss+xml" title="RSS 2.0
-	 recent photos" tal:attributes="href ssroot/rss/recent/" />
+    <link rel="alternate" type="application/rss+xml" title="RSS 2.0 recent photos" tal:attributes="href ssroot/rss/recent/" />
+    <script type="text/javascript" src="/static/flashembed.min.js"></script>    
 <style>
 .header a { text-decoration: none; }
 body {  padding: 5px;  font-family: 'Lucida Grande', Verdana, Arial, Sans-Serif;  text-align: center; }
@@ -190,7 +190,7 @@ tal:attributes="href crumb/link" tal:content="crumb/title">Crumb</a> &gt; </span
 </div>
 <div>
 
-<img tal:define="t item/sizes/view" tal:attributes="src t/href;height t/height;width t/width" class="thumbnail" border="0" />
+<div tal:replace="structure item/viewbody"></div>
 
 <div class="textblock">
 <div tal:content="item/title" style="font-weight: bold;">Item Title</div>

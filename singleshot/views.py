@@ -141,9 +141,23 @@ class ImageView(ItemView, ViewableObject):
 
     def _load_sizes(self):
         return ImageSizes(self)
-            
+
+    @property
+    def viewbody(self):
+        sv = self.sizes['view']
+        if self.rawimagepath.endswith('.flv'):            
+            return """<div id="videocontent"></div>
+<script>
+flashembed("videocontent", {src : "/static/FlowPlayerLight.swf",
+                            width : %(width)d, height : %(height)d},
+                           {config : {autoPlay : false, autoBuffering : true, initialScale : 'scale',
+                            videoFile : "%(href)s"}});
+</script>""" % {'height' : self.height, 'width' : self.width, 'href' : self.path + '.flv'}
+        else:
+            return '<img src="%s" height="%s" width="%s" class="thumbnail" border="0">' % (sv.href, str(sv.height), str(sv.width))
 
 
+    
 class OrderedItems(list):
     def compose(*orders):
         def _compare(x, y):
