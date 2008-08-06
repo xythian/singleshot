@@ -16,6 +16,15 @@ setup(name = 'singleshot', version="3.0.0",
       entry_points = """
          [singleshot.actions]
          rss = singleshot.action_rss:handle
+
+         [singleshot.handlers]
+         .flv = singleshot.handlers.flv:FLVHandler
+         image/jpeg = singleshot.handlers.magick:ImageMagickHandler
+         image/png = singleshot.handlers.magick:ImageMagickHandler
+         image/gif = singleshot.handlers.magick:ImageMagickHandler         
+
+         [singleshot.readers]
+         image/jpeg = singleshot.jpeg:JpegHeader
       """,
       url= 'http://www.singleshot.org/'
 )

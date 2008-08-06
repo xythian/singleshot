@@ -10,7 +10,6 @@ def find_action(name):
         return candidates[-1].load()
     return None
 
-
 def load_actions():
     actions = {}
     for act in iter_entry_points("singleshot.actions"):

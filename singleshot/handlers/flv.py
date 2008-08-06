@@ -9,22 +9,17 @@ from struct import unpack, calcsize
 from datetime import datetime
 from pytz import utc
 from singleshot.properties import PackedRecord
-from singleshot.imageprocessor import ImageProcessor, ImageMagickProcessor
 import tempfile
 import shutil
 import os
 import subprocess
+from singleshot.handlers import Handler, HandlerManager
 
-class FLVProcessor(ImageProcessor):
-    def __init__(self, store):
-        super(FLVProcessor, self).__init__(store)
-        self.imp = ImageMagickProcessor(store)
+class FLVHandler(Handler):
+    def __init__(self, store=None):
+        super(FLVProcessor, self).__init__(store=store)
+        self.imp = HandlerManager(store=store)
         
-    def handles(self, fileinfo):
-        return fileinfo.isa('.flv')
-
-    extensions = ('.flv',)
-
     def load_metadata(self, target, fileinfo):
         header = FLVHeader(fileinfo.path)
         target.height = int(header.height)
@@ -34,7 +29,7 @@ class FLVProcessor(ImageProcessor):
         #target.video_data_rate = header.videodatarate
         #target.framerate = header.framerate
 
-    def execute(self, source=None, dest=None, size=None):
+    def generate(self, source=None, dest=None, size=None):
         tmpdir = tempfile.mkdtemp()
         args = ['mplayer', '-nosound', '-really-quiet', '-quiet', '-vo', 'jpeg:outdir=%s' % tmpdir, '-ss', '00:00:03', '-frames', '1', source]
         proc = subprocess.Popen(args, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=self.config.getInvokeEnvironment())
@@ -44,40 +39,20 @@ class FLVProcessor(ImageProcessor):
         if r != 0 or not os.path.exists(jpg):
             LOG.debug("ImageProcessor failed for %s -> %s", source, dest)
         else:
-            self.imp.execute(source=jpg, dest=dest, size=size)
+            self.imp.generate(source=jpg, dest=dest, size=size)
             #shutil.move(jpg, dest)
             os.remove(jpg)
             os.rmdir(tmpdir)
 
-class AVIProcessor(ImageProcessor):
-    def __init__(self, store):
-        super(AVIProcessor, self).__init__(store)
-        self.imp = ImageMagickProcessor(store)
+    def view_html(self, item=None):
+        return """<div id="videocontent"></div>
+<script>
+flashembed("videocontent", {src : "/static/FlowPlayerLight.swf",
+                            width : %(width)d, height : %(height)d},
+                           {config : {autoPlay : false, autoBuffering : true, initialScale : 'scale',
+                            videoFile : "%(href)s"}});
+</script>""" % {'height' : self.height, 'width' : self.width, 'href' : self.path + '.flv'}
         
-    def handles(self, fileinfo):
-        return fileinfo.isa('.avi')
-
-    extensions = ('.avi',)
-
-    def load_metadata(self, target, fileinfo):
-        target.height = 480
-        target.width = 640
-
-    def execute(self, source=None, dest=None, size=None):
-        tmpdir = tempfile.mkdtemp()
-        args = ['mplayer', '-nosound', '-really-quiet', '-quiet', '-vo', 'jpeg:outdir=%s' % tmpdir, '-ss', '00:00:03', '-frames', '1', source]
-        proc = subprocess.Popen(args, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=self.config.getInvokeEnvironment())
-        data = proc.stdout.read()
-        r = proc.wait()
-        jpg = os.path.join(tmpdir, '00000001.jpg')
-        if r != 0 or not os.path.exists(jpg):
-            LOG.debug("ImageProcessor failed for %s -> %s", source, dest)
-        else:
-            self.imp.execute(source=jpg, dest=dest, size=size)
-            #shutil.move(jpg, dest)
-            os.remove(jpg)
-            os.rmdir(tmpdir)
-
 
 class FormatException(Exception):
     pass

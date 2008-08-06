@@ -7,7 +7,7 @@ import sys
 from singleshot.model import Item, ImageItem, ContainerItem
 from singleshot.taltemplates import ViewableObject, ViewableContainerObject, PathFunctionVariable
 from urlparse import urlsplit, urlunsplit
-from singleshot.fsloader import ImageSizes
+from singleshot.fsloader import ImageSizes, FileInfo
 
 import logging
 LOG = logging.getLogger('singleshot')
@@ -144,19 +144,7 @@ class ImageView(ItemView, ViewableObject):
 
     @property
     def viewbody(self):
-        sv = self.sizes['view']
-        if self.rawimagepath.endswith('.flv'):            
-            return """<div id="videocontent"></div>
-<script>
-flashembed("videocontent", {src : "/static/FlowPlayerLight.swf",
-                            width : %(width)d, height : %(height)d},
-                           {config : {autoPlay : false, autoBuffering : true, initialScale : 'scale',
-                            videoFile : "%(href)s"}});
-</script>""" % {'height' : self.height, 'width' : self.width, 'href' : self.path + '.flv'}
-        else:
-            return '<img src="%s" height="%s" width="%s" class="thumbnail" border="0">' % (sv.href, str(sv.height), str(sv.width))
-
-
+        return handlers.view_html(item=self)
     
 class OrderedItems(list):
     def compose(*orders):
