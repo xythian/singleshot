@@ -1,5 +1,5 @@
 from singleshot.storage import FilesystemEntity
-from singleshot.properties import ViewMeta
+from singleshot.properties import ViewMeta, wrap_printexc
 
 import time
 import os
@@ -144,7 +144,7 @@ class ImageView(ItemView, ViewableObject):
 
     @property
     def viewbody(self):
-        return handlers.view_html(item=self)
+        return self.store.handler.view_html(item=self)
     
 class OrderedItems(list):
     def compose(*orders):

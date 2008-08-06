@@ -10,7 +10,7 @@ import logging
 LOG = logging.getLogger('singleshot.handlers.magick')
 from singleshot.handlers import ImageHandlerBase
 
-class ImageMagickProcessor(ImageHandlerBase):
+class ImageMagickHandler(ImageHandlerBase):
     def generate(self, source=None, dest=None, size=None, sharpen="0.9x80"):
         LOG.info('IM Generating image %s -> %s (%dx%d)',
                  source,

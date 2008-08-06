@@ -2,7 +2,6 @@ from singleshot.storage import FilesystemEntity, FileInfo
 from singleshot.ssconfig import read_config
 from singleshot.jpeg import JpegHeader, calculate_box
 from singleshot.model import ContainerItem, ImageItem, MONTHS, DynamicContainerItem
-from singleshot import imageprocessor
 import mmap
 
 from singleshot.properties import dtfromtimestamp, Local
@@ -31,13 +30,9 @@ class FSLoader(object):
 
 class ImageFSLoader(FSLoader):
     def handles(self, fileinfo):
-        return self.store.processor.handles(fileinfo)
-
-    extensions = property(lambda self:self.store.processor.extensions)
+        return self.store.handler.handles(fileinfo)
 
     def load_path(self, path, fileinfo):
-        processor = self.store.processor
-        
         if path.endswith(fileinfo.extension):
             path = path[:-len(fileinfo.extension)]        
         img = ImageItem()
@@ -45,7 +40,7 @@ class ImageFSLoader(FSLoader):
         img.aliases = (path + fileinfo.extension,)
         img.rawimagepath = fileinfo.path
         img.filename = fileinfo.filename
-        processor.load_metadata(img, fileinfo)
+        self.store.handler.load_metadata(img, fileinfo)
         img.modify_time = fileinfo.mtime
         if not img.publish_time:
             p = month_dir(fileinfo.dirname)
@@ -264,9 +259,9 @@ class ImageSize(FilesystemEntity):
     def generate(self):
         if not os.path.exists(self.image.viewfilepath):
             os.makedirs(self.image.viewfilepath)
-        self.store.processor.execute(source=self.image.rawimagepath,
-                                     dest=self.path,
-                                     size=self)
+        self.store.handler.generate(source=self.image.rawimagepath,
+                                    dest=self.path,
+                                    size=self)
 
     def expire(self):
         if self.exists:    

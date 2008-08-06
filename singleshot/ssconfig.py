@@ -4,7 +4,7 @@ import fnmatch
 import logging
 import sys
 
-from singleshot.handlers import HandlerManager
+from singleshot import handlers
 from singleshot.storage import FilesystemEntity
 from singleshot.properties import demand_property
 
@@ -187,7 +187,8 @@ def create_store(root,
     store.config = SingleshotConfig(store, baseurl=baseurl)    
     store.loader = loader(store)
     store.load_view = ViewLoader(store).load_view
-    store.handler = HandlerManager(store)
+    store.handler = handlers.HandlerManager(store=store, handlers=handlers.load_handlers())
+    store.metareader = handlers.MetadataManager(store=store, handlers=handlers.load_readers())
     return store
 
 

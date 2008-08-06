@@ -3,11 +3,7 @@ from singleshot.storage import FilesystemEntity
 from singleshot.xmp import XMPHeader, EmptyXMPHeader
 
 import os
-import tempfile
-import shutil
-from cStringIO import StringIO
 import re
-import time
 import mmap
 from struct import pack, unpack, calcsize
 

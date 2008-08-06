@@ -17,8 +17,7 @@ from singleshot.handlers import Handler, HandlerManager
 
 class FLVHandler(Handler):
     def __init__(self, store=None):
-        super(FLVProcessor, self).__init__(store=store)
-        self.imp = HandlerManager(store=store)
+        super(FLVHandler, self).__init__(store=store)
         
     def load_metadata(self, target, fileinfo):
         header = FLVHeader(fileinfo.path)
@@ -39,7 +38,7 @@ class FLVHandler(Handler):
         if r != 0 or not os.path.exists(jpg):
             LOG.debug("ImageProcessor failed for %s -> %s", source, dest)
         else:
-            self.imp.generate(source=jpg, dest=dest, size=size)
+            self.store.handler.generate(source=jpg, dest=dest, size=size)
             #shutil.move(jpg, dest)
             os.remove(jpg)
             os.rmdir(tmpdir)
@@ -51,7 +50,7 @@ flashembed("videocontent", {src : "/static/FlowPlayerLight.swf",
                             width : %(width)d, height : %(height)d},
                            {config : {autoPlay : false, autoBuffering : true, initialScale : 'scale',
                             videoFile : "%(href)s"}});
-</script>""" % {'height' : self.height, 'width' : self.width, 'href' : self.path + '.flv'}
+</script>""" % {'height' : item.height, 'width' : item.width, 'href' : item.path + '.flv'}
         
 
 class FormatException(Exception):

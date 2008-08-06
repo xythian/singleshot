@@ -1,3 +1,4 @@
+from singleshot.storage import FilesystemEntity, FileInfo
 import mimetypes
 from pkg_resources import iter_entry_points
 
@@ -37,17 +38,18 @@ class Handler(object):
         "Return URL handlers related to this handler (image resizers, support data, etc)"
         return ()
 
+
 class ImageHandlerBase(Handler):
     def __init__(self, store=None):
         super(ImageHandlerBase, self).__init__(store=store)
-        self.metareader = MetadataManager()
         
     def view_html(self, item=None):
+        print '***** hodor'
         sv = item.sizes['view']        
         return '<img src="%s" height="%s" width="%s" class="thumbnail" border="0">' % (sv.href, str(sv.height), str(sv.width))
 
     def load_metadata(self, target=None, fileinfo=None):
-        hdr = self.metareader.get(fileinfo)
+        hdr = self.store.metareader.get(fileinfo)
         if not hdr:
             return
         header = hdr(fileinfo.path)
@@ -77,18 +79,21 @@ class ImageHandlerBase(Handler):
         
 
 class MetadataManager(object):
-    def __init__(self, store=None):
-        self.handlers = dict((key, val(store=store)) for key, val in load_readers())
+    def __init__(self, store=None, handlers=None):
+        self.handlers = handlers
     
     def get(self, fileinfo):
         ct, ce = mimetypes.guess_type(fileinfo.basename)
         val = self.handlers.get(ct) if ct else None
         return val if val else self.handlers.get(fileinfo.extension.lower())
-        
 
 class HandlerManager(Handler):
-    def __init__(self, store=None):
-        self.handlers = dict((key, val(store=store)) for key, val in load_handlers())
+    def __init__(self, store=None, handlers=None):
+        super(HandlerManager, self).__init__(store=store)
+        self.handlers = dict((key, val(store=store)) for key, val in handlers.items())
+
+    def handles(self, fileinfo):
+        return self.get(fileinfo) is not None
 
     def get(self, fileinfo):
         ct, ce = mimetypes.guess_type(fileinfo.basename)
@@ -102,7 +107,7 @@ class HandlerManager(Handler):
         return self.get(FileInfo(item.rawimagepath)).view_html(item=item)
 
     def load_metadata(self, target=None, fileinfo=None):
-        return self.get(fileinfo).load_metadata(target=None, fileinfo=fileinfo)
+        return self.get(fileinfo).load_metadata(target=target, fileinfo=fileinfo)
 
     def url_handlers(self):
         return chain(*list(t.url_handlers() for t in self.handlers.values()))
