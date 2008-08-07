@@ -14,7 +14,14 @@ import shutil
 import os
 import subprocess
 from singleshot.handlers import Handler, HandlerManager
+from paste.fileapp import FileApp
 
+def video_handler(request):
+    path = request.urlmatch.group('path')
+    image = request.store.load_view(path)
+    path = image.rawimagepath
+    return request.wsgi_pass(FileApp(path))
+    
 class FLVHandler(Handler):
     def __init__(self, store=None):
         super(FLVHandler, self).__init__(store=store)
@@ -51,6 +58,10 @@ flashembed("videocontent", {src : "/static/FlowPlayerLight.swf",
                            {config : {autoPlay : false, autoBuffering : true, initialScale : 'scale',
                             videoFile : "%(href)s"}});
 </script>""" % {'height' : item.height, 'width' : item.width, 'href' : item.path + '.flv'}
+        
+
+    def url_handlers(self):
+        return (r'(?P<path>.+?)\.flv', video_handler)
         
 
 class FormatException(Exception):

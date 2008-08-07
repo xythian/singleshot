@@ -1,14 +1,13 @@
 import os
-import fnmatch
 import sys
 import re
 import struct
 import shutil
-import imp
 import logging
+from singleshot.handlers.images import ImageHandlerBase
 
 LOG = logging.getLogger('singleshot.handlers.magick')
-from singleshot.handlers import ImageHandlerBase
+
 
 class ImageMagickHandler(ImageHandlerBase):
     def generate(self, source=None, dest=None, size=None, sharpen="0.9x80"):

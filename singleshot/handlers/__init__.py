@@ -1,6 +1,8 @@
 from singleshot.storage import FilesystemEntity, FileInfo
 import mimetypes
 from pkg_resources import iter_entry_points
+from shotweb import by2
+from itertools import chain
 
 def load_handlers():
     actions = {}
@@ -37,45 +39,6 @@ class Handler(object):
     def url_handlers(self):
         "Return URL handlers related to this handler (image resizers, support data, etc)"
         return ()
-
-
-class ImageHandlerBase(Handler):
-    def __init__(self, store=None):
-        super(ImageHandlerBase, self).__init__(store=store)
-        
-    def view_html(self, item=None):
-        print '***** hodor'
-        sv = item.sizes['view']        
-        return '<img src="%s" height="%s" width="%s" class="thumbnail" border="0">' % (sv.href, str(sv.height), str(sv.width))
-
-    def load_metadata(self, target=None, fileinfo=None):
-        hdr = self.store.metareader.get(fileinfo)
-        if not hdr:
-            return
-        header = hdr(fileinfo.path)
-        if header.iptc.title:
-            target.title = header.iptc.title
-        target.caption = header.iptc.caption
-        target.capture_time = header.exposure.capture_time
-        target.camera_model = header.exposure.camera_model
-        target.camera_mfg = header.exposure.camera_mfg
-        if header.exposure.duration:
-            target.exposure_duration = repr(header.exposure.duration)
-        if header.exposure.aperture:
-            target.exposure_aperture = 'f/' +header.exposure.aperture.floatformat()
-        if header.exposure.focal:
-            target.exposure_focal = header.exposure.focal.floatformat()
-        target.exposure_iso = header.exposure.iso
-        target.height = header.height
-        target.width = header.width
-        if header.iptc.datetime:
-            target.publish_time = header.iptc.datetime
-        elif  header.exposure.capture_time:
-            target.publish_time = header.exposure.capture_time
-        target.keywords = ()
-        if header.iptc.keywords:
-            target.keywords = header.iptc.keywords
-        return target    
         
 
 class MetadataManager(object):
@@ -110,4 +73,10 @@ class HandlerManager(Handler):
         return self.get(fileinfo).load_metadata(target=target, fileinfo=fileinfo)
 
     def url_handlers(self):
-        return chain(*list(t.url_handlers() for t in self.handlers.values()))
+        handlers = list(by2(chain(*(t.url_handlers() for t in self.handlers.values()))))
+        seen = set()
+        for h, v in handlers:
+            if h not in seen:
+                seen.add(h)
+                yield h
+                yield v

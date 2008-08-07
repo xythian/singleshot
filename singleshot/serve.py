@@ -12,7 +12,6 @@ from PIL import Image, ImageDraw
 import time
 import sys
 import re
-from StringIO import StringIO
 from itertools import chain
 import mimetypes
 
@@ -36,19 +35,6 @@ def wrapzor(handlers, wrap):
 
 VERSION = pkg_resources.get_distribution('singleshot').version
 
-def create_404_image():
-    msg = Image.new("RGB", (100, 20), (0, 0, 0))
-    draw = ImageDraw.Draw(msg)
-    draw.text((5, 5), "404 Not found", fill=(255, 255, 255))
-    del draw
-    f = StringIO()
-    msg.save(f, "JPEG")
-    del msg
-    app = DataApp(content=f.getvalue(), content_type='image/jpeg')
-    app.cache_control(public=True, max_age=86400*36500)
-    return app
-
-IMAGE_404 = create_404_image()
 
 #
 # Create an app to serve singleshot, built on shotweb only
@@ -90,31 +76,7 @@ def static_handler(request):
     app.cache_control(public=True, max_age=3600)
     return request.wsgi_pass(app)
 
-def image_handler(request):
-    path, size = request.urlmatch.group('path', 'size')
-    if not size:
-        size = '1200'
-    size = int(size)
-    image = request.store.load_view(path)
-    if not image or not size:
-        return request.wsgi_pass(IMAGE_404)
-    serveimage = image
-    path = image.rawimagepath
-    if image.width > size or image.height > size:
-        serveimage = image.sizes[size]
-        serveimage.ensure()
-        path = serveimage.path
-    serveimage = image.sizes[size]
-    serveimage.ensure()
-    path = serveimage.path
-    return request.wsgi_pass(FileApp(path))
 
-def video_handler(request):
-    path = request.urlmatch.group('path')
-    image = request.store.load_view(path)
-    path = image.rawimagepath
-    return request.wsgi_pass(FileApp(path))
-    
 
 def view_handler(request):
     path = request.urlmatch.group('path')
@@ -170,13 +132,12 @@ def page_handlers(path):
             
 def create(store=None, middleware=(), error_handler=shotweb.debug_error_handler):
     # TODO: pre-load pages/ and static/ for pages
-    urls = (
-        r'/(?P<static>static/.+)', static_handler,
-        r'(?P<path>.+?)(-(?P<size>[0-9]+))?\.jpg', image_handler,
-        r'(?P<path>.+?)\.flv', video_handler,        
+    urls = [r'/(?P<static>static/.+)', static_handler]
+    urls.extend(store.handler.url_handlers())
+    urls.extend((
         r'(?P<path>.+)\.html', view_handler,
         r'(?P<path>.+)', view_handler
-    )
+    ))
 
     # insert handlers for each other action
 
