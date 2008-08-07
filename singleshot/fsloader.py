@@ -13,6 +13,7 @@ import cPickle as pickle
 #import pickle
 import sys
 
+from urlparse import urljoin
 
 import fnmatch
 
@@ -233,11 +234,7 @@ class ImageSize(FilesystemEntity):
         bn, ext = os.path.splitext(image.filename)
         filename = '%s-%s.jpg' % (bn,
                                   size)
-        self.href = self.config.url_prefix + pn[1:]
-        if self.href[-1] != '/':
-            self.href += '/' + filename
-        else:
-            self.href += filename
+        self.href = self.store.full_href(urljoin(pn[1:] + '/',  filename))
         path = os.path.join(image.viewfilepath, filename) 
         super(ImageSize, self).__init__(path)
 

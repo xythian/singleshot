@@ -47,9 +47,6 @@ def install_singleshot():
     shutil.copy2("singleshot-unpacked/root-htaccess", "wwwroot/singleshot/.htaccess")
     f = open("wwwroot/singleshot/_singleshot.cfg", 'w')
     f.write("""
-[singleshot]
-url_prefix=/singleshot/
-
 [paths]
 imagemagick=/usr/bin
 libjpegbin=/usr/bin

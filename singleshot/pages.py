@@ -26,7 +26,7 @@ class StaticPage(ViewableObject):
         context = super(StaticPage, self).create_context()
         config = self.store.config
         context.addGlobal("form", self.form)
-        context.addGlobal("ssroot", PathFunctionVariable(lambda x:config.url_prefix + x))
+        context.addGlobal("ssroot", PathFunctionVariable(lambda x:self.store.full_href(x)))
         for key, val in self.other.items():
             context.addGlobal(key, val)
         return context

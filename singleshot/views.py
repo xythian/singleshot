@@ -60,6 +60,7 @@ class ItemView(object):
         else:
             if self.path != '/':
                 self.parent = load_view(calcparent)
+
     def _get_parents(self):
         p = self.parent
         while p:
@@ -67,7 +68,7 @@ class ItemView(object):
             p = p.parent
         
     def _get_href(self):
-        url = self.config.url_prefix + self.path[1:]
+        url = self.store.full_href(self.path[1:])
         if self.ctxparent:
             url += '?in=%s' % (self.parent.path,)
         return url
@@ -105,7 +106,7 @@ class ItemView(object):
             return self._load_view(path, parent=parent)
         context.addGlobal("lastitem",  PathFunctionVariable(load_lastitem))
         context.addGlobal("ssroot",
-                          PathFunctionVariable(lambda x:self.config.url_prefix +  x))
+                          PathFunctionVariable(lambda x:self.store.full_href(x)))
         def make_crumbs():
             return Breadcrumbs(self)
         context.addGlobal("crumbs", make_crumbs())        
@@ -128,7 +129,7 @@ class ImageView(ItemView, ViewableObject):
     __of__ = ImageItem
 
     def _get_href(self):
-        url = self.config.url_prefix + self.path[1:] + '.html'
+        url = self.store.full_href(self.path[1:] + '.html')
         if self.ctxparent:
             url += '?in=%s' % (self.parent.path,)        
         return url

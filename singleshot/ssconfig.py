@@ -65,22 +65,6 @@ class Store(object):
         self.page_root = os.path.join(root, 'pages')
         self.static_root = os.path.join(root, 'static')
 
-    def within_root(self, dirname):
-        return os.path.abspath(dirname).startswith(self.image_root)
-
-    def check_path(self, path):
-        "Note: now accepts URI path instead of %{REQUEST_FILENAME}"
-        if path.startswith(CONFIG.url_prefix):
-            path = path[len(CONFIG.url_prefix):]
-        path = os.path.join(self.image_root, os.path.normpath(path))
-        if os.path.isabs(path):
-            path = os.path.normpath(path)
-        else:
-            path = os.path.normpath('/' + path)        
-        if not self.within_root(path):
-            raise SecurityError, '%s does not start with ROOT (%s)' % (path, self.image_root)
-        return path
-
     def find_template(self, filename):
         return os.path.join(self.template_root, filename)
 
@@ -91,10 +75,7 @@ class SingleshotConfig(ConfiguredEntity):
                     'feed' : { 'title' : '',
                               'description' : '',
                                'recentcount' : '10'                               
-                              },
-                    'actions' : { 'view'   : 'singleshot.action_view',
-                                  'rss'    : 'singleshot.action_rss',
-                                  'resize' : 'singleshot.action_resize'}
+                              }
                }
     _default_imagesizes =  {  'mini' : 40,
                              'thumb' : 200,
@@ -103,9 +84,8 @@ class SingleshotConfig(ConfiguredEntity):
                              'large' : 1200
                            }
 
-    def __init__(self, store, baseurl='/'):
+    def __init__(self, store):
         super(SingleshotConfig, self).__init__(store.root)
-        self.url_prefix = baseurl
         self.store = store
 
 
@@ -174,7 +154,6 @@ def default_logging(root, log_level):
 
 
 def create_store(root,
-                 baseurl='/singleshot',
                  template_root=None,
                  configure_logging=default_logging,
                  log_level=logging.WARNING,
@@ -184,7 +163,7 @@ def create_store(root,
     from singleshot import imageprocessor
 
     store = Store(root, template_root=template_root)    
-    store.config = SingleshotConfig(store, baseurl=baseurl)    
+    store.config = SingleshotConfig(store)
     store.loader = loader(store)
     store.load_view = ViewLoader(store).load_view
     store.handler = handlers.HandlerManager(store=store, handlers=handlers.load_handlers())

@@ -64,6 +64,7 @@ def store_wrapper(store):
         @copyinfo(app)
         def _wrapped(request):
             request.store = store
+            request.store.full_href = request.full_path
             return app(request)
         return _wrapped
     return _wrap
@@ -75,8 +76,6 @@ def static_handler(request):
     app = FileApp(target_path)
     app.cache_control(public=True, max_age=3600)
     return request.wsgi_pass(app)
-
-
 
 def view_handler(request):
     path = request.urlmatch.group('path')
@@ -92,7 +91,7 @@ def view_handler(request):
         parent = load_view(ctxname)
     view = load_view(path, parent=parent)
     if not view:
-        return create_handler(os.path.join(request.store.root, 'templates'), '404')
+        return create_handler(os.path.join(request.store.root, 'templates'), '404')(request)
     if hasattr(view, 'view_page'):
         view = view.view_page(pn)
     return view.request_view(request)
