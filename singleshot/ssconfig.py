@@ -160,8 +160,6 @@ def create_store(root,
                  loader=default_loader):
     configure_logging(root, log_level)
     from singleshot.views import ViewLoader
-    from singleshot import imageprocessor
-
     store = Store(root, template_root=template_root)    
     store.config = SingleshotConfig(store)
     store.loader = loader(store)
