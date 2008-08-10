@@ -27,12 +27,6 @@ from singleshot import actions, pages
 from paste.httpheaders import CACHE_CONTROL, IF_NONE_MATCH, IF_MODIFIED_SINCE, ETAG, CONTENT_DISPOSITION, LAST_MODIFIED
 from paste.fileapp import FileApp, DataApp
 
-def wrapzor(handlers, wrap):
-    h = iter(handlers)
-    while True:
-        yield h.next()
-        yield wrap(h.next())
-
 VERSION = pkg_resources.get_distribution('singleshot').version
 
 
@@ -128,8 +122,8 @@ def page_handlers(path):
         elif ext == '.html':
             yield r'/%s(/(?P<path>.*))?' % name
             yield pages.template_handler(target_path)
-            
-def create(store=None, middleware=(), error_handler=shotweb.debug_error_handler):
+
+def create_handlers(store=None):
     # TODO: pre-load pages/ and static/ for pages
     urls = [r'/(?P<static>static/.+)', static_handler]
     urls.extend(store.handler.url_handlers())
@@ -144,11 +138,12 @@ def create(store=None, middleware=(), error_handler=shotweb.debug_error_handler)
     for name, act in actions.load_actions().items():
         urls.insert(0, act)
         urls.insert(0, r'/%s(/(?P<path>.+))?' % name)
-
-    urls = wrapzor(urls, store_wrapper(store))
+    return shotweb.wrap_handlers(urls, store_wrapper(store))
     
+            
+def create(store=None, middleware=(), error_handler=shotweb.debug_error_handler):
+    urls = create_handlers(store=store)
     ui_app = shotweb.create_application(urls, requestType=UIRequest, error_handler=error_handler, middleware=middleware)
-
     return ui_app
     
 

@@ -53,11 +53,14 @@ class FLVHandler(Handler):
     def view_html(self, item=None):
         return """<div id="videocontent"></div>
 <script>
-flashembed("videocontent", {src : "/static/FlowPlayerLight.swf",
+flashembed("videocontent", {src : "%(player)s",
                             width : %(width)d, height : %(height)d},
                            {config : {autoPlay : false, autoBuffering : true, initialScale : 'scale',
                             videoFile : "%(href)s"}});
-</script>""" % {'height' : item.height, 'width' : item.width, 'href' : item.path + '.flv'}
+</script>""" % {'player' : self.store.full_href('/static/FlowPlayerLight.swf'),
+                'height' : item.height,
+                'width' : item.width,
+                'href' : self.store.full_href(item.path + '.flv')}
         
 
     def url_handlers(self):
