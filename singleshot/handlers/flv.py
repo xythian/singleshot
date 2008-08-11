@@ -15,6 +15,8 @@ import os
 import subprocess
 from singleshot.handlers import Handler, HandlerManager
 from paste.fileapp import FileApp
+import logging
+LOG = logging.getLogger("singleshot.handlers.flv")
 
 def video_handler(request):
     path = request.urlmatch.group('path')
@@ -40,6 +42,7 @@ class FLVHandler(Handler):
         args = ['mplayer', '-nosound', '-really-quiet', '-quiet', '-vo', 'jpeg:outdir=%s' % tmpdir, '-ss', '00:00:03', '-frames', '1', source]
         proc = subprocess.Popen(args, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=self.config.getInvokeEnvironment())
         data = proc.stdout.read()
+        LOG.warn("mplayer invocation: %s" % data)
         r = proc.wait()
         jpg = os.path.join(tmpdir, '00000001.jpg')
         if r != 0 or not os.path.exists(jpg):
