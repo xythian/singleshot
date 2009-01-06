@@ -292,7 +292,11 @@ class JpegHeader(object):
                except KeyError:
                    pass
                if callback:
-                  callback(file, offset, length)
+                  try:
+                     callback(file, offset, length)
+                  except:
+                     # for now, eat the exception
+                     pass
                else:
                    pass
 #                   print hex(type), length
