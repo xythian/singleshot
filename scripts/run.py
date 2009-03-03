@@ -5,7 +5,8 @@ import singleshot.serve
 import singleshot.ssconfig
 import os
 
-root = '../../sites/photos.xythian.com'
+jroot = '../../sites/photos.xythian.com'
+root = '../singleshot_testroot'
 root = os.path.abspath(root)
 templates = os.path.join(root, 'templates')
 
