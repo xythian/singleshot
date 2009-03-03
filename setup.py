@@ -1,6 +1,8 @@
 #!/usr/bin/python
 from setuptools import setup, find_packages
 
+# foo bar
+
 # need more than one packaging
 # the all-egg packaging with all dependencies suitable for PyPI
 # the debian packages
