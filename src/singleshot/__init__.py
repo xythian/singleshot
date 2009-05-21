@@ -1,4 +1,0 @@
-
-#
-# the singleshot package
-#
