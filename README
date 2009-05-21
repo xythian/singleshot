@@ -31,7 +31,7 @@ You will need the following software installed on your web server
 to install Singleshot.
 
    * Apache http://www.apache.org/ with mod_rewrite
-   * Python 2.4+ http://www.python.org/
+   * Python 2.5+ http://www.python.org/
    * ImageMagick http://www.imagemagick.org
 
 Singleshot relies on setting mod_rewrite directives in .htaccess.
