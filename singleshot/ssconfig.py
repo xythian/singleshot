@@ -56,7 +56,9 @@ class Store(object):
         
         self.root = root                    # is the root
         
-        if template_root:
+        if template_root == ':internal:':
+            self.template_root = None
+        elif template_root:
             self.template_root = template_root
         else:
             self.template_root = os.path.join(self.root, 'templates')
@@ -66,7 +68,10 @@ class Store(object):
         self.static_root = os.path.join(root, 'static')
 
     def find_template(self, filename):
-        return os.path.join(self.template_root, filename)
+        if self.template_root:
+            return os.path.join(self.template_root, filename)
+        else:
+            return filename
 
 class SingleshotConfig(ConfiguredEntity):
     defaults = {    'paths' : { 'invokePath' : '/bin:/usr/bin' },
@@ -119,7 +124,7 @@ class SingleshotConfig(ConfiguredEntity):
             return True
         elif path.startswith(self.store.view_root):
             return True
-        elif path.startswith(self.store.template_root):
+        elif self.store.template_root and path.startswith(self.store.template_root):
             return True
         elif path.startswith(self.store.page_root):
             return True

@@ -9,11 +9,12 @@
 #   python packages distributed with Python 2.3's distutils.
 #
 
-def all_templates():
-    return __templates.items()
-    mydir, myname = os.path.split(__file__)
+from simpletal import simpleTAL
 
-__templates = {'404.html' : """<html><head><title>Not Found</title></head><body><h1>Not found</h1></body></html>""",
+def all_templates():
+    return _templates.items()
+
+_templates = {'404.html' : """<html><head><title>Not Found</title></head><body><h1>Not found</h1></body></html>""",
 
 'macros.html' : """<macros>
 <div metal:define-macro="paginator" tal:define="p paginator" 
@@ -60,9 +61,9 @@ body {  padding: 5px;  font-family: 'Lucida Grande', Verdana, Arial, Sans-Serif;
 <div id="page">
 <div id="header">Singleshot: <ul class="navlinks">
 <li><a tal:attributes="href ssroot/">Home</a></li>
-<li tal:condition="data/keyword"/><a tal:attributes="href ssroot/recent/">recent</a></li>
-<li tal:condition="data/keyword"/><a tal:attributes="href ssroot/keyword/">keywords</a></li>
-<li tal:condition="data/bydate"/><a tal:attributes="href ssroot/bydate/">by date</a></li>
+<li tal:condition="data/keyword"><a tal:attributes="href ssroot/recent/">recent</a></li>
+<li tal:condition="data/keyword"><a tal:attributes="href ssroot/keyword/">keywords</a></li>
+<li tal:condition="data/bydate"><a tal:attributes="href ssroot/bydate/">by date</a></li>
 </ul>
 </div>
 
@@ -219,4 +220,13 @@ tal:attributes="href crumb/link" tal:content="crumb/title">Crumb</a> &gt; </span
 }
 
 
+class TemplateLoader(object):
+    def __init__(self):
+        self.compiled = {}
+        for k, v in _templates.items():
+            self.compiled[k] = simpleTAL.compileHTMLTemplate(v)
 
+    def load(self, name):
+        return self.compiled[name]
+
+LOADER = TemplateLoader()

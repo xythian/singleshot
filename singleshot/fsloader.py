@@ -68,8 +68,6 @@ def month_dir(fspath):
         return year, month, datetime(year, month, 01, 00, 00, 00, tzinfo=Local)
     else:
         return None
-    
-
 
 class DirectoryFSLoader(FSLoader):
     def __init__(self, store, is_item):

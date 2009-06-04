@@ -108,6 +108,8 @@ def create_handler(path, name):
         return pages.template_handler(target_path + '.html')
 
 def page_handlers(path):
+    if not os.path.exists(path):
+        return
     for item in os.listdir(path):
         name, ext = os.path.splitext(item)
         target_path = os.path.join(path, item)

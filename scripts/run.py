@@ -4,11 +4,8 @@
 import singleshot.serve
 import singleshot.ssconfig
 import os
+import sys
 
-jroot = '../../sites/photos.xythian.com'
-root = '../singleshot_testroot'
-root = os.path.abspath(root)
-templates = os.path.join(root, 'templates')
-
-store = singleshot.ssconfig.create_store(root, template_root=templates)
+root = os.path.abspath(sys.argv[1])
+store = singleshot.ssconfig.create_store(root, template_root=':internal:')
 singleshot.serve.serve_http(store, addr='', port=8080)

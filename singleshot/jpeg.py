@@ -412,6 +412,13 @@ class JpegHeader(object):
             if hasattr(xmp, 'Headline'):
                 self.iptc.headline = str(xmp.Headline)
 
+def main():
+   path = sys.argv[1]
+   myheader = JpegHeader(path)
+   print myheader.comment, (myheader.height, myheader.width), myheader.iptc.datetime, myheader.iptc.keywords
+   
 
-
+if __name__ == '__main__':
+   import sys
+   main()
 

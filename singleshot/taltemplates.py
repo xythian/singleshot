@@ -1,17 +1,20 @@
 from __future__ import nested_scopes
-import imp
-
 import sys
 
 from simpletal import simpleTAL, simpleTALES
 from simpletal.simpleTALES import PathFunctionVariable, CachedFuncResult
 from simpletal.simpleTALUtils import TemplateCache, FastStringOutput
 
+import singleshot.templates as internal_templates
 from singleshot.properties import *
 
-from itertools import chain
+class CachedLoader(object):
+    def __init__(self):
+        self.cache = TemplateCache()
+    def load(self, path):
+        return self.cache.getTemplate(path)
 
-TEMPLATE_CACHE = TemplateCache()
+PATH_LOADER = CachedLoader()
 
 class ViewableObject(object):
     viewname = 'view'
@@ -21,7 +24,9 @@ class ViewableObject(object):
     def load_template(self, path):
         if not path:
             return None
-        return TEMPLATE_CACHE.getTemplate(path)
+        if not path.startswith('/'):
+            return internal_templates.LOADER.load(path)
+        return PATH_LOADER.load(path)
 
     def find_template(self, name):
         return self.store.find_template(name + '.html')        
