@@ -455,7 +455,7 @@ class PickleCacheStore(object):
 
     def most_tags(self):
         self.ready()
-        x = [(unicode(tag.name), tag) for tag in self.tags.values() if tag.count > 3 and ':' not in tag.name]
+        x = [(unicode(tag.name), tag) for tag in self.tags.values() if tag.count > 3 and 'publish:' not in tag.name]
         return x
 
     def recent_images(self, count=10):
@@ -561,6 +561,10 @@ class SingleshotLoader(ItemLoader):
                     record_keyword('publish:%04d-%02d' % (d.year, d.month))
                     record_keyword('publish:%04d' % (d.year))
                     record_keyword('publish:%04d-%02d-%02d' % (d.year, d.month, d.day))
+                    if item.exposure_iso:
+                        record_keyword('iso:%s' % item.exposure_iso)
+                    if item.exposure_focal:
+                        record_keyword('focal:%smm' % item.exposure_focal)
                     if item.camera_model:
                         record_keyword('camera:%s' % item.camera_model)
                 record_keywords()
