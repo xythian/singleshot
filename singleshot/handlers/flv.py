@@ -39,12 +39,14 @@ class FLVHandler(Handler):
 
     def generate(self, source=None, dest=None, size=None):
         tmpdir = tempfile.mkdtemp()
-        args = ['mplayer', '-nosound', '-really-quiet', '-quiet', '-vo', 'jpeg:outdir=%s' % tmpdir, '-ss', '00:00:03', '-frames', '1', source]
+        #args = ['mplayer', '-nosound', '-really-quiet', '-quiet', '-vo', 'jpeg:outdir=%s' % tmpdir, '-ss', '00:00:03', '-frames', '1', source]
+        args = ['ffmpeg', '-i', source, '-an', '-r', '1', '-ss', '00:00:03', '-vframes', '1', '-y', os.path.join(tmpdir, '%d.jpg')]
         proc = subprocess.Popen(args, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=self.config.getInvokeEnvironment())
         data = proc.stdout.read()
-        LOG.warn("mplayer invocation: %s" % data)
+        #LOG.warn("mplayer invocation: %s" % data)
         r = proc.wait()
-        jpg = os.path.join(tmpdir, '00000001.jpg')
+        #jpg = os.path.join(tmpdir, '00000001.jpg')
+        jpg = os.path.join(tmpdir, '1.jpg')
         if r != 0 or not os.path.exists(jpg):
             LOG.debug("ImageProcessor failed for %s -> %s", source, dest)
         else:
