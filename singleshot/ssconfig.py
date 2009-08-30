@@ -83,9 +83,9 @@ class SingleshotConfig(ConfiguredEntity):
                               }
                }
     _default_imagesizes =  {  'mini' : 40,
-                             'thumb' : 200,
+                             'thumb' : 300,
                           'bigthumb' : 350,
-                              'view' : 600,
+                              'view' : 650,
                              'large' : 1200
                            }
 

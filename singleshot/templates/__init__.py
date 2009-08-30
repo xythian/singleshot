@@ -34,7 +34,22 @@ tal:content="p/pages">1</span>
   <head>
     <title><span tal:content="title" tal:omit-tag="">Page Title</span></title>
     <link rel="alternate" type="application/rss+xml" title="RSS 2.0 recent photos" tal:attributes="href ssroot/rss/recent/" />
-    <script type="text/javascript" src="/static/flashembed.min.js"></script>    
+<!-- Dependencies -->
+<script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/yahoo/yahoo-min.js"></script>
+
+<!-- Source File -->
+<script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/cookie/cookie-min.js"></script>
+
+    <script type="text/javascript" src="/static/flashembed.min.js"></script>
+<script type="text/javascript">
+var screencookie = YAHOO.util.Cookie.get("bb");
+if(!screencookie) {
+   var winW = 630, winH = 460;
+  if (navigator.appName=="Netscape") { winW = window.innerWidth;   winH = window.innerHeight;    }
+  if (navigator.appName.indexOf("Microsoft")!=-1) { winW = document.body.offsetWidth;  winH = document.body.offsetHeight;           }
+  YAHOO.util.Cookie.set("bb", winW + "x" + winH);
+}
+</script>
 <style>
 .header a { text-decoration: none; }
 body {  padding: 5px;  font-family: 'Lucida Grande', Verdana, Arial, Sans-Serif;  text-align: center; }

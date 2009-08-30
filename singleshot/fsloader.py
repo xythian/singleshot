@@ -602,7 +602,7 @@ class SingleshotLoader(ItemLoader):
                                       **data.info)
         elif path.startswith('/recent'):
             km = path.split('/')[1:]
-            count = 200
+            count = 2000
             if len(km) == 2:
                 try:
                     count = int(km[1])
@@ -612,7 +612,7 @@ class SingleshotLoader(ItemLoader):
                 count = 5000
             
             return self.dynacontainer(path,
-                                        'Recent photos',
+                                        'Photos',
                                         contentsfunc=lambda : self.recent_images(count),
                                         order='-publishtime')
         elif path.startswith('/keyword'):
