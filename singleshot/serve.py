@@ -85,7 +85,7 @@ def view_handler(request):
         parent = load_view(ctxname)
     view = load_view(path, parent=parent)
     if not view:
-        return create_handler(os.path.join(request.store.root, 'templates'), '404')(request)
+        return create_handler(request, '404')(request)
     if hasattr(view, 'view_page'):
         view = view.view_page(pn)
     return view.request_view(request)
@@ -95,7 +95,8 @@ def path_act(target):
         return target(request.urlmatch.group('path'), request)
     return handle
 
-def create_handler(path, name):
+def create_handler(request, name):
+    path = os.path.join(request.store.root, 'templates')    
     target_path = os.path.join(path, name)
     if os.path.exists(target_path + '.py'):
         f = open(target_path, 'U')
@@ -104,8 +105,11 @@ def create_handler(path, name):
         finally:
             f.close()
         return path_act(target.act)
-    else:
+    elif os.path.exists(target_path + '.html'):
         return pages.template_handler(target_path + '.html')
+    else:
+        return pages.template_handler(request.store.find_template('404.html'))
+
 
 def page_handlers(path):
     if not os.path.exists(path):

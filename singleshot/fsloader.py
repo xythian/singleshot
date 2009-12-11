@@ -738,4 +738,3 @@ class AlbumData(object):
             self._loaded = True
             self._load()
         return self._sets.get(path)
-
