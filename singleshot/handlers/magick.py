@@ -4,7 +4,7 @@ import re
 import struct
 import shutil
 import logging
-from singleshot.handlers.images import ImageHandlerBase
+from singleshot.handlers.images import ImageHandlerBase, ImageCreationFailedException
 
 LOG = logging.getLogger('singleshot.handlers.magick')
 
@@ -24,3 +24,4 @@ class ImageMagickHandler(ImageHandlerBase):
         r = os.spawnvpe(os.P_WAIT, cmd, args, self.config.getInvokeEnvironment())
         if r != 0 or not os.path.exists(dest):
             LOG.debug("ImageProcessor failed for %s -> %s", source, dest)
+            raise ImageCreationFailedException("handlers.image.magick: Image Creation Failed (code %d)" % r)

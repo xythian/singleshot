@@ -36,6 +36,8 @@ def image_handler(request):
     path = serveimage.path
     return request.wsgi_pass(FileApp(path))
 
+class ImageCreationFailedException(Exception):
+    pass
 
 class ImageHandlerBase(Handler):
     def __init__(self, store=None):
