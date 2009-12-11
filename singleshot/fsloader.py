@@ -139,6 +139,9 @@ class ItemLoader(object):
                         todo.append(item)    
         return walk(self.load_item, self.load_item('/'))
 
+    def __iter__(self):
+        return self.walk()
+
 class MemoizeLoader(ItemLoader):
     def __init__(self, load_item=None):
         if load_item:
@@ -209,6 +212,7 @@ class FilesystemLoader(ItemLoader):
                         return self.imgloader.load_path(path, finfo)
         return None
 
+        
 class ImageSize(FilesystemEntity):
     """
     An ImageSize is an ImageItem rendered at a particular size.
@@ -637,7 +641,7 @@ class SingleshotLoader(ItemLoader):
             ym = path.split('/')[1:]
             if len(ym) == 1:
                 contents = ['/bydate/' + str(year.year) for year in self.image_years()]
-                count = reduce(lambda x,y:x+y, [year.count for year in self.image_years()])
+                count = reduce(lambda x,y:x+y, [year.count for year in self.image_years()], 0)
                 contents.sort()
                 contents.reverse()
                 return self.dynacontainer(path,
@@ -734,6 +738,4 @@ class AlbumData(object):
             self._loaded = True
             self._load()
         return self._sets.get(path)
-
-
 
