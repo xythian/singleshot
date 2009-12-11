@@ -8,12 +8,16 @@ def load_handlers():
     actions = {}
     for act in iter_entry_points("singleshot.handlers"):
         actions[act.name] = act.load()
+    if not actions:
+        print '** WARNING: No handlers found, is singleshot installed?'
     return actions
 
 def load_readers():
     actions = {}
     for act in iter_entry_points("singleshot.readers"):
         actions[act.name] = act.load()
+    if not actions:
+        print '** WARNING: No readers found, is singleshot installed?'
     return actions
 
 class Handler(object):
